@@ -78,6 +78,8 @@ def plotData(x, data, log=False, *args):
 
     ax.set_xlabel('day')
     ax.set_ylabel('{} the number of confirmed cases'.format(l))
+    
+    return fig, ax
 
 # short test
 if __name__ == "__main__":

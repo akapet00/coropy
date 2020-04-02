@@ -9,7 +9,8 @@ def RMSE(true_vals, preds):
 def loss(params, confirmed_cases, y0):
     def SIR(t, y):
         S, I, R = y
-        return [-beta*S*I, beta*S*I-gamma*I, gamma*I]
+        N = S + I + R
+        return [-beta*S*I/N, beta*S*I/N-gamma*I, gamma*I]
     beta, gamma = params
     size = len(confirmed_cases)
     sol = solve_ivp(SIR, (0, size), y0, method='RK45', t_eval=np.arange(0, size, 1), vectorized=True)
@@ -31,6 +32,7 @@ class SIRModel(object):
     def predict(self, n_days):
         def SIR(t, y):
             S, I, R = y
-            return [-self.beta*S*I, self.beta*S*I-self.gamma*I, self.gamma*I]
+            N = S + I + R
+            return [-self.beta*S*I/N, self.beta*S*I/N-self.gamma*I, self.gamma*I]
         sol = solve_ivp(SIR, (0, n_days), self.y0, method='RK45', t_eval=np.arange(0, n_days, 1), vectorized=True)
         return sol
