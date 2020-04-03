@@ -32,7 +32,7 @@ class ExponentialModel(Model):
         self.popt, self.pcov = curve_fit(exp_func, x, y)
         fitted = exp_func(x, *self.popt) 
         fitted = restore(fitted, confirmed_cases)
-        return fitted 
+        return fitted, (self.popt, self.pcov) 
 
     def predict(self, n_days):
         x_future = np.linspace(len(self.confirmed_cases)-1, 
@@ -55,7 +55,7 @@ class LogisticModel(Model):
         self.popt, self.pcov = curve_fit(logistic_func, x, y)
         fitted = logistic_func(x, *self.popt) 
         fitted = restore(fitted, confirmed_cases)
-        return fitted 
+        return fitted, (self.popt, self.pcov) 
 
     def predict(self, n_days):
         x_future = np.linspace(len(self.confirmed_cases)-1, 

@@ -1,12 +1,9 @@
 import numpy as np 
 from scipy.integrate import solve_ivp
 from scipy.optimize import minimize
-from sklearn.metrics import mean_squared_error
+from SIR.utils import RMSE
 
-def RMSE(true_vals, preds):
-    return np.sqrt(mean_squared_error(true_vals, preds))
-
-def loss(params, confirmed_cases, y0):
+def loss(params, confirmed_cases, recovered_cases, y0):
     def SIR(t, y):
         S, I, R = y
         N = S + I + R
@@ -14,19 +11,20 @@ def loss(params, confirmed_cases, y0):
     beta, gamma = params
     size = len(confirmed_cases)
     sol = solve_ivp(SIR, (0, size), y0, method='RK45', t_eval=np.arange(0, size, 1), vectorized=True)
-    return RMSE(sol.y[1], confirmed_cases)
+    return RMSE(sol.y[1], confirmed_cases) + RMSE(sol.y[2], recovered_cases)
 
 class SIRModel(object):
     def __init__(self):
         pass
 
-    def fit(self, confirmed_cases, initial_conditions):
+    def fit(self, confirmed_cases, recovered_cases, initial_conditions):
         self.y0 = initial_conditions
         opt = minimize(loss, [0.001, 0.001],
-                    args=(confirmed_cases, self.y0),
-                    method='L-BFGS-B', 
-                    bounds=[(0.00000001, 0.4), (0.00000001, 0.4)])
-        self.beta, self.gamma = opt.x 
+                    args=(confirmed_cases, recovered_cases, self.y0),
+                    method='L-BFGS-B',
+                    bounds=[(1e-7, 1.0), (1e-6, 1.0)])
+        self.beta, self.gamma = opt.x
+        print(f'R0 = {np.round(self.beta/self.gamma, 3)}')
         return self.beta, self.gamma
 
     def predict(self, n_days):
