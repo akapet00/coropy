@@ -15,7 +15,15 @@ def moving_average(y, n=3) :
 def RMSE(true_vals, preds):
     return np.sqrt(mean_squared_error(true_vals, preds))
 
-# short test
+def train_test_split(data, ratio):
+    train_size = int(ratio * len(data))
+
+    train_data = data[:train_size]
+    test_data = data[train_size:]
+    
+    return train_data, test_data
+
+# short tests
 if __name__ == "__main__":
     x = np.arange(50)
     print(f'Original data:\n {x}\n')
@@ -30,4 +38,10 @@ if __name__ == "__main__":
     preds = np.r_[np.arange(0, 9, 1), np.array([8])]
     print(trues)
     print(preds)
-    print(f'RMSE: {RMSE(trues, preds)}')
+    print(f'RMSE: {RMSE(trues, preds)}\n')
+    full = np.array([1, 2, 3, 4, 5])
+    ratio = .8
+    train, test = train_test_split(full, ratio)
+    print(f'Data: {full}')
+    print(f'Train data: {train}')
+    print(f'Test data: {test}')

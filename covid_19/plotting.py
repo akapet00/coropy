@@ -64,7 +64,7 @@ def plotData(x, data, log=False, *args):
         l = ''
         fig = plt.figure(figsize=figsize(scale, nplots))
         ax = fig.add_subplot(111)
-        ax.plot(data, marker='x', markersize=9,
+        ax.plot(confirmed, marker='x', markersize=9,
                  linestyle='None', color='blue', 
                  label='confirmed cases')
         
@@ -72,7 +72,7 @@ def plotData(x, data, log=False, *args):
         l = 'log'
         fig = plt.figure(figsize=figsize(scale, nplots))
         ax = fig.add_subplot(111)
-        ax.plot(np.log10(data), marker='x', markersize=9,
+        ax.plot(np.log10(confirmed), marker='x', markersize=9,
                  linestyle='None', color='blue', 
                  label='log of the number of confirmed cases')
 
