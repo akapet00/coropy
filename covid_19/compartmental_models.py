@@ -80,6 +80,6 @@ class SEIR(object):
         sol = solve_ivp(SEIR, (0, n_days), self.y0, method='RK45', t_eval=np.arange(0, n_days, 1), vectorized=True)
         return sol
     
-class SEIRQ(object):
+class SEIQR(object):
     def __init__(self):
         pass

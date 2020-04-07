@@ -23,6 +23,12 @@ def train_test_split(data, ratio):
     
     return train_data, test_data
 
+def cdf(data):
+    n = len(data)
+    x = np.sort(data)
+    y = np.arange(1, n+1) / n
+    return x, y
+
 # short tests
 if __name__ == "__main__":
     x = np.arange(50)
@@ -45,3 +51,4 @@ if __name__ == "__main__":
     print(f'Data: {full}')
     print(f'Train data: {train}')
     print(f'Test data: {test}')
+   

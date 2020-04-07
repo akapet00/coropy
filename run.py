@@ -9,7 +9,7 @@ from sklearn.metrics import r2_score
 from covid_19.utils import normalize, restore, moving_average, train_test_split
 from covid_19.plotting import plotData, figsize, latexconfig
 from covid_19.exponential_models import ExponentialModel, LogisticModel
-from covid_19.compartmental_models import SIR
+from covid_19.compartmental_models import SIR, SEIR
 
 def exp_fit(x, train_confirmed_cases, test_confirmed_cases, n_future_days):
     fig, ax = plotData(x, train_confirmed_cases, False, 1.5)
@@ -149,7 +149,7 @@ def gaussian_processes_extrapolation(x, confirmed_cases, train_confirmed_cases, 
         plt.legend(loc='best')
         plt.show()
 
-def sir_model(S0, I0, R0, confirmed_cases, recovered_cases, split_ratio):
+def sir_model(S0, I0, R0, confirmed_cases, recovered_cases, split_ratio, epidemics_start_date):
     train_confirmed_cases, test_confirmed_cases = train_test_split(confirmed_cases, split_ratio)
     train_recovered_cases, test_recovered_cases = train_test_split(recovered_cases, split_ratio)
     
@@ -161,9 +161,9 @@ def sir_model(S0, I0, R0, confirmed_cases, recovered_cases, split_ratio):
     print(beta, gamma)
     sol = sir_model.predict(n_future_days)
 
-    epidemics_start = dt.datetime(2020, 2, 25)
-    end = epidemics_start + dt.timedelta(days=n_future_days)
-    days = mdates.drange(epidemics_start, end, dt.timedelta(days=1))
+   
+    end = epidemics_start_date + dt.timedelta(days=n_future_days)    
+    days = mdates.drange(epidemics_start_date, end, dt.timedelta(days=1))
 
     fig = plt.figure(figsize=figsize(1.5, 1))
     ax = fig.add_subplot(111)
@@ -173,19 +173,67 @@ def sir_model(S0, I0, R0, confirmed_cases, recovered_cases, split_ratio):
     ax.plot(days, sol.y[0], 'k-', label='S(t)')
     ax.plot(days, sol.y[1], 'r-', label='I(t)')
     ax.plot(days, sol.y[2], 'g-', label='R(t)')
-    ax.plot(days[:len(confirmed_cases)],
-            confirmed_cases, 
+    ax.plot(days[:len(train_confirmed_cases)],
+            train_confirmed_cases, 
             linestyle='None', marker='x', color='red', alpha=0.7, 
             label='train confirmed cases')
-    ax.plot(days[len(confirmed_cases):len(confirmed_cases)+len(test_confirmed_cases)], 
+    ax.plot(days[len(train_confirmed_cases):len(train_confirmed_cases)+len(test_confirmed_cases)], 
             test_confirmed_cases, 
             'ro', linestyle='None', 
             label='test confirmed cases')
-    ax.plot(days[:len(recovered_cases)],
-            recovered_cases, 
+    ax.plot(days[:len(train_recovered_cases)],
+            train_recovered_cases, 
             linestyle='None', marker='x', color='green', alpha=0.7, 
             label='train recovered cases')
-    ax.plot(days[len(recovered_cases):len(recovered_cases)+len(test_recovered_cases)], 
+    ax.plot(days[len(train_recovered_cases):len(train_recovered_cases)+len(test_recovered_cases)], 
+            test_recovered_cases, 
+            'go', linestyle='None', 
+            label='test recovered cases')
+
+    _ = plt.gcf().autofmt_xdate()
+    plt.ylabel('number of people')
+
+    plt.grid()
+    plt.legend(loc='upper right')
+    plt.show()
+
+def seir_model(S0, E0, I0, R0, confirmed_cases, recovered_cases, split_ratio, epidemics_start_date):
+    train_confirmed_cases, test_confirmed_cases = train_test_split(confirmed_cases, split_ratio)
+    train_recovered_cases, test_recovered_cases = train_test_split(recovered_cases, split_ratio)
+    
+    initial_conditions = [S0, E0, I0, R0]
+    n_future_days = len(train_confirmed_cases) * 5
+
+    seir_model = SEIR()
+    beta, delta, alpha, gamma = seir_model.fit(train_confirmed_cases, train_recovered_cases, initial_conditions)
+    print(f'R0 = {beta/(delta+gamma)}')
+    sol = seir_model.predict(n_future_days)
+
+    end = epidemics_start_date + dt.timedelta(days=n_future_days)    
+    days = mdates.drange(epidemics_start_date, end, dt.timedelta(days=1))
+
+    fig = plt.figure(figsize=figsize(1.5, 1))
+    ax = fig.add_subplot(111)
+    _ = fig.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+    _ = fig.gca().xaxis.set_major_locator(mdates.DayLocator(interval=20))
+
+    ax.plot(days, sol.y[0], 'k-', label='S(t)')
+    ax.plot(days, sol.y[1], 'b-', label='E(t)')
+    ax.plot(days, sol.y[2], 'r-', label='I(t)')
+    ax.plot(days, sol.y[3], 'g-', label='R(t)')
+    ax.plot(days[:len(train_confirmed_cases)],
+            train_confirmed_cases, 
+            linestyle='None', marker='x', color='red', alpha=0.7, 
+            label='train confirmed cases')
+    ax.plot(days[len(train_confirmed_cases):len(train_confirmed_cases)+len(test_confirmed_cases)], 
+            test_confirmed_cases, 
+            'ro', linestyle='None', 
+            label='test confirmed cases')
+    ax.plot(days[:len(train_recovered_cases)],
+            train_recovered_cases, 
+            linestyle='None', marker='x', color='green', alpha=0.7, 
+            label='train recovered cases')
+    ax.plot(days[len(train_recovered_cases):len(train_recovered_cases)+len(test_recovered_cases)], 
             test_recovered_cases, 
             'go', linestyle='None', 
             label='test recovered cases')
@@ -202,9 +250,9 @@ def main():
     latexconfig()
 
     # data
-    confirmed_cases = np.loadtxt('data/confirmed_cases.dat')
-    recovered_cases = np.loadtxt('data/recovered_cases.dat')
-
+    confirmed_cases = np.loadtxt('data/cro/confirmed_cases.dat')
+    recovered_cases = np.loadtxt('data/cro/recovered_cases.dat')
+    
     # ratio = 1
     # train_confirmed_cases, test_confirmed_cases = train_test_split(confirmed_cases, ratio)
     # train_recovered_cases, test_recovered_cases = train_test_split(recovered_cases, ratio)
@@ -212,12 +260,15 @@ def main():
     # # days since first case
     # x = np.arange(len(train_confirmed_cases))
 
-    # susceptible-infectious-recovered model
-    S0 = 2200
+    # susceptible-exposed-infected-recovered model
+    S0 = 5000
+    E0 = 0
     I0 = confirmed_cases[0]
-    R0 = 0
-    sir_model(S0, I0, R0, confirmed_cases, recovered_cases, split_ratio=1)
+    R0 = recovered_cases[0]
+    epidemics_start_date = dt.datetime(2020, 2, 25)
+    seir_model(S0, E0, I0, R0, confirmed_cases, recovered_cases, 0.88, epidemics_start_date)
     
 
 if __name__ == "__main__":
+    
     main()
