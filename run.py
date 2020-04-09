@@ -14,7 +14,7 @@ from covid_19.compartmental_models import SIR, SEIR
 def exp_fit(x, train_confirmed_cases, test_confirmed_cases, n_future_days):
     fig, ax = plotData(x, train_confirmed_cases, False, 1.5)
 
-    exp_model = ExponentialModel()
+    exp_model = ExponentialModel(normalize=False)
     fitted, _ = exp_model.fit(x, train_confirmed_cases)
     ax.plot(x, fitted, 'r-', label='exponential fit')
 
@@ -27,6 +27,7 @@ def exp_fit(x, train_confirmed_cases, test_confirmed_cases, n_future_days):
 
     plt.grid()
     plt.legend(loc='best')
+    fig.savefig(f'figs/exp-fit.pdf', bbox_inches='tight')
     plt.show()
 
 def logit_fit(x, train_confirmed_cases, test_confirmed_cases, n_future_days):
@@ -46,9 +47,10 @@ def logit_fit(x, train_confirmed_cases, test_confirmed_cases, n_future_days):
 
     plt.grid()
     plt.legend(loc='best')
+    fig.savefig(f'figs/logit-fit.pdf', bbox_inches='tight')
     plt.show()
 
-def new_cases_plot(n_avg, confirmed_cases):
+def new_cases_plot(confirmed_cases, n_avg):
     confirmed_averaged = moving_average(confirmed_cases, n=n_avg)
 
     new_cases = []
@@ -61,12 +63,12 @@ def new_cases_plot(n_avg, confirmed_cases):
 
     fig = plt.figure(figsize=figsize(1.5,1))
     ax = fig.add_subplot(111)
-    ax.plot(new_cases, 'o')
+    ax.plot(new_cases, 'bo-')
     ax.set_xlabel('days')
-    ax.set_ylabel('new cases day-to-day')
-    plt.title(f'on {n_avg}-day average confirmed cases')
+    ax.set_ylabel(f'new cases avereged over {n_avg} days')
 
     plt.grid()
+    fig.savefig(f'figs/{n_avg}-day-avg-conf-cases.pdf', bbox_inches='tight')
     plt.show()
 
 def averaged_new_cases_v_total_cases(confirmed_cases, period):
@@ -92,8 +94,8 @@ def averaged_new_cases_v_total_cases(confirmed_cases, period):
 
     fig = plt.figure(figsize=figsize(1.5,1))
     ax = fig.add_subplot(111)
-    ax.loglog(confirmed_cases_periodically, new_cases, '-', label='data')
-    plt.xlabel(f'total confirmed cases every {period} days')
+    ax.loglog(confirmed_cases_periodically, new_cases, 'b-', label='data')
+    plt.xlabel(f'confirmed cases')
     plt.ylabel(f'new cases')
 
     # fitting it linearly to check if the growth is exponential
@@ -103,10 +105,11 @@ def averaged_new_cases_v_total_cases(confirmed_cases, period):
     ax.plot(_x, y, 'r--', label='loglinear fit')
 
     # exponential growth ground
-    ax.plot(_x, _x, 'k:', label='exp growth')
+    ax.plot(_x, _x, 'k:', label='exponential growth')
 
     plt.grid()
     plt.legend()
+    fig.savefig(f'figs/new-v-total.pdf', bbox_inches='tight')
     plt.show()
 
 def gaussian_processes_extrapolation(x, confirmed_cases, train_confirmed_cases, test_confirmed_cases):
@@ -120,7 +123,6 @@ def gaussian_processes_extrapolation(x, confirmed_cases, train_confirmed_cases, 
 
     # simulated data
     n_future_days_list = [10, 50, 100, 365]
-
     for i, n_d in enumerate(n_future_days_list):
         x_pred = np.arange(0, len(x)+n_d-1).reshape(-1,1)
         y_pred, sigma = gp.predict(x_pred, return_std=True)
@@ -161,7 +163,6 @@ def sir_model(S0, I0, R0, confirmed_cases, recovered_cases, split_ratio, epidemi
     print(beta, gamma)
     sol = sir_model.predict(n_future_days)
 
-   
     end = epidemics_start_date + dt.timedelta(days=n_future_days)    
     days = mdates.drange(epidemics_start_date, end, dt.timedelta(days=1))
 
@@ -170,9 +171,9 @@ def sir_model(S0, I0, R0, confirmed_cases, recovered_cases, split_ratio, epidemi
     _ = fig.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
     _ = fig.gca().xaxis.set_major_locator(mdates.DayLocator(interval=20))
 
-    ax.plot(days, sol.y[0], 'k-', label='S(t)')
-    ax.plot(days, sol.y[1], 'r-', label='I(t)')
-    ax.plot(days, sol.y[2], 'g-', label='R(t)')
+    #ax.plot(days, sol.y[0], 'k-', label='susceptible')
+    ax.plot(days, sol.y[1], 'r-', label='infected')
+    ax.plot(days, sol.y[2], 'g-', label='recovered/diceased')
     ax.plot(days[:len(train_confirmed_cases)],
             train_confirmed_cases, 
             linestyle='None', marker='x', color='red', alpha=0.7, 
@@ -195,6 +196,7 @@ def sir_model(S0, I0, R0, confirmed_cases, recovered_cases, split_ratio, epidemi
 
     plt.grid()
     plt.legend(loc='upper right')
+    fig.savefig(f'figs/sir.pdf', bbox_inches='tight')
     plt.show()
 
 def seir_model(S0, E0, I0, R0, confirmed_cases, recovered_cases, split_ratio, epidemics_start_date):
@@ -202,7 +204,7 @@ def seir_model(S0, E0, I0, R0, confirmed_cases, recovered_cases, split_ratio, ep
     train_recovered_cases, test_recovered_cases = train_test_split(recovered_cases, split_ratio)
     
     initial_conditions = [S0, E0, I0, R0]
-    n_future_days = len(train_confirmed_cases) * 5
+    n_future_days = len(train_confirmed_cases) * 3
 
     seir_model = SEIR()
     beta, delta, alpha, gamma = seir_model.fit(train_confirmed_cases, train_recovered_cases, initial_conditions)
@@ -217,10 +219,10 @@ def seir_model(S0, E0, I0, R0, confirmed_cases, recovered_cases, split_ratio, ep
     _ = fig.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
     _ = fig.gca().xaxis.set_major_locator(mdates.DayLocator(interval=20))
 
-    ax.plot(days, sol.y[0], 'k-', label='S(t)')
-    ax.plot(days, sol.y[1], 'b-', label='E(t)')
-    ax.plot(days, sol.y[2], 'r-', label='I(t)')
-    ax.plot(days, sol.y[3], 'g-', label='R(t)')
+    #ax.plot(days, sol.y[0], 'k-', label='S(t)')
+    ax.plot(days, sol.y[1], 'b-', label='exposed')
+    ax.plot(days, sol.y[2], 'r-', label='infected')
+    ax.plot(days, sol.y[3], 'g-', label='recovered/diceased')
     ax.plot(days[:len(train_confirmed_cases)],
             train_confirmed_cases, 
             linestyle='None', marker='x', color='red', alpha=0.7, 
@@ -243,32 +245,48 @@ def seir_model(S0, E0, I0, R0, confirmed_cases, recovered_cases, split_ratio, ep
 
     plt.grid()
     plt.legend(loc='upper right')
+    fig.savefig(f'figs/seir.pdf', bbox_inches='tight')
     plt.show()
 
 
 def main():
     latexconfig()
 
-    # data
+    # cro data
+    start_date = dt.datetime(2020, 2, 25)
     confirmed_cases = np.loadtxt('data/cro/confirmed_cases.dat')
     recovered_cases = np.loadtxt('data/cro/recovered_cases.dat')
+    death_cases = np.loadtxt('data/cro/death_cases.dat')
+    removed_cases = recovered_cases + death_cases
     
-    # ratio = 1
-    # train_confirmed_cases, test_confirmed_cases = train_test_split(confirmed_cases, ratio)
-    # train_recovered_cases, test_recovered_cases = train_test_split(recovered_cases, ratio)
+    ratio = 1
+    train_confirmed_cases, test_confirmed_cases = train_test_split(confirmed_cases, ratio)
+    train_recovered_cases, test_recovered_cases = train_test_split(recovered_cases, ratio)
     
-    # # days since first case
-    # x = np.arange(len(train_confirmed_cases))
+    # days since first case
+    x = np.arange(len(train_confirmed_cases))
+
+    # exp fit
+    exp_fit(x, train_confirmed_cases, test_confirmed_cases, n_future_days=7)
+
+    # logit fit 
+    logit_fit(x, train_confirmed_cases, test_confirmed_cases, n_future_days=7)
+
+    # new cases averaged 
+    new_cases_plot(confirmed_cases, n_avg=7)
+
+    # new cases v total cases averaged
+    averaged_new_cases_v_total_cases(confirmed_cases, period=7)
 
     # susceptible-exposed-infected-recovered model
-    S0 = 5000
-    E0 = 0
-    I0 = confirmed_cases[0]
-    R0 = recovered_cases[0]
-    epidemics_start_date = dt.datetime(2020, 2, 25)
-    seir_model(S0, E0, I0, R0, confirmed_cases, recovered_cases, 0.88, epidemics_start_date)
+    seir_model(S0=5000, 
+               E0=0, 
+               I0=confirmed_cases[0], 
+               R0=recovered_cases[0], 
+               confirmed_cases=confirmed_cases, 
+               recovered_cases=recovered_cases, 
+               split_ratio=0.8, 
+               epidemics_start_date=start_date)
     
-
 if __name__ == "__main__":
-    
     main()

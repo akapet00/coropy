@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt 
+from matplotlib import dates as mdates
 from matplotlib import rcParams 
 import numpy as np
+import datetime as dt 
 
 def latexconfig():
     """Paper ready plots; standard LaTeX configuration."""
@@ -60,24 +62,21 @@ def plotData(x, data, log=False, *args):
         scale = 1
         nplots = 1
     
+    fig = plt.figure(figsize=figsize(scale, nplots))
+    ax = fig.add_subplot(111)
     if not log:
         l = ''
-        fig = plt.figure(figsize=figsize(scale, nplots))
-        ax = fig.add_subplot(111)
         ax.plot(confirmed, marker='x', markersize=9,
-                 linestyle='None', color='blue', 
-                 label='confirmed cases')
-        
+                linestyle='None', color='blue', 
+                label='confirmed cases')
     else:
         l = 'log'
-        fig = plt.figure(figsize=figsize(scale, nplots))
-        ax = fig.add_subplot(111)
         ax.plot(np.log10(confirmed), marker='x', markersize=9,
-                 linestyle='None', color='blue', 
-                 label='log of the number of confirmed cases')
+                linestyle='None', color='blue', 
+                label='log of the number of confirmed cases')
 
-    ax.set_xlabel('day')
-    ax.set_ylabel('{} the number of confirmed cases'.format(l))
+    ax.set_xlabel('days since the first case')
+    ax.set_ylabel('{} confirmed cases'.format(l))
     
     return fig, ax
 
