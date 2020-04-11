@@ -66,12 +66,12 @@ def plotData(x, data, log=False, *args):
     ax = fig.add_subplot(111)
     if not log:
         l = ''
-        ax.plot(confirmed, marker='x', markersize=9,
+        ax.plot(confirmed, marker='o', alpha=0.7,
                 linestyle='None', color='blue', 
                 label='confirmed cases')
     else:
         l = 'log'
-        ax.plot(np.log10(confirmed), marker='x', markersize=9,
+        ax.plot(np.log10(confirmed), marker='o', alpha=0.7,
                 linestyle='None', color='blue', 
                 label='log of the number of confirmed cases')
 
