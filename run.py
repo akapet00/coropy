@@ -240,12 +240,15 @@ def seir_model(S0, E0, I0, R0, confirmed_cases, recovered_cases, split_ratio, ep
                 test_recovered_cases, 
                 'go', mfc='none', linestyle='None', 
                 label='test removed')
+        plt.axis([days[0], days[confirmed_cases.size + 1], 0, 1750])
+        _ = fig.gca().xaxis.set_major_locator(mdates.DayLocator(interval=7))
+
         
     _ = plt.gcf().autofmt_xdate()
     plt.ylabel('number of people')
 
     plt.grid()
-    plt.legend(loc='lower right')
+    plt.legend(loc='best')
     fig.savefig(f'figs/seir-{split_ratio}-split-ratio.pdf', bbox_inches='tight')
     plt.show()
     return R0
@@ -260,12 +263,12 @@ def main():
     death_cases = np.loadtxt('data/cro/death_cases.dat')
     removed_cases = recovered_cases + death_cases
     
-    # ratio = 0.90
-    # train_confirmed_cases, test_confirmed_cases = train_test_split(confirmed_cases, ratio)
-    # train_removed_cases, test_removed_cases = train_test_split(removed_cases, ratio)
+    ratio = 1.0
+    train_confirmed_cases, test_confirmed_cases = train_test_split(confirmed_cases, ratio)
+    train_removed_cases, test_removed_cases = train_test_split(removed_cases, ratio)
     
-    # # days since first case
-    # x = np.arange(len(train_confirmed_cases))
+    # days since first case
+    x = np.arange(len(train_confirmed_cases))
 
     # # exp fit
     # exp_fit(x, train_confirmed_cases, test_confirmed_cases, n_future_days=len(test_confirmed_cases))
@@ -293,8 +296,8 @@ def main():
                                split_ratio=ratio, 
                                epidemics_start_date=start_date))
 
-    # file_name = f'reproduction_number/{dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.txt'
-    # np.savetxt(file_name, R0)
+    file_name = f'reproduction_number/{dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.txt'
+    np.savetxt(file_name, R0)
     
 if __name__ == "__main__":
     main()
