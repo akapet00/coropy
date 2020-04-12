@@ -21,9 +21,9 @@ def exp_fit(x, train_confirmed_cases, test_confirmed_cases, n_future_days):
     # extrapolation 
     _x, preds = exp_model.predict(n_future_days)
     ax.plot(_x, preds, 'r--', label='predictions')
-    ax.plot(np.arange(len(train_confirmed_cases), 
+    ax.scatter(np.arange(len(train_confirmed_cases), 
                       len(train_confirmed_cases)+len(test_confirmed_cases), 1),
-            test_confirmed_cases, 'bo', mfc='none', label='test data')
+            test_confirmed_cases, facecolors='none', edgecolors='b', label='test data')
 
     plt.grid()
     plt.legend(loc='best')
@@ -41,9 +41,9 @@ def logit_fit(x, train_confirmed_cases, test_confirmed_cases, n_future_days):
     # extrapolation
     _x, preds = logit_model.predict(n_future_days)
     ax.plot(_x, preds, 'r--', label='predictions')
-    ax.plot(np.arange(len(train_confirmed_cases), 
+    ax.scatter(np.arange(len(train_confirmed_cases), 
                       len(train_confirmed_cases)+len(test_confirmed_cases), 1),
-            test_confirmed_cases, 'bo', mfc='none', label='test data')
+            test_confirmed_cases, facecolors='none', edgecolors='b', label='test data')
 
     plt.grid()
     plt.legend(loc='best')
@@ -231,17 +231,18 @@ def seir_model(S0, E0, I0, R0, confirmed_cases, recovered_cases, split_ratio, ep
             label='fitted removed')
 
     if test_confirmed_cases.size > 0:
-        ax.plot(days[len(train_confirmed_cases):len(train_confirmed_cases)+len(test_confirmed_cases)], 
+        ax.scatter(days[len(train_confirmed_cases):len(train_confirmed_cases)+len(test_confirmed_cases)], 
                 test_confirmed_cases, 
-                'ro', mfc='none', linestyle='None', 
+                facecolors='none', edgecolors='r', linestyle='None', 
                 label='test confirmed')
 
-        ax.plot(days[len(train_recovered_cases):len(train_recovered_cases)+len(test_recovered_cases)], 
+        ax.scatter(days[len(train_recovered_cases):len(train_recovered_cases)+len(test_recovered_cases)], 
                 test_recovered_cases, 
-                'go', mfc='none', linestyle='None', 
+                facecolors='none', edgecolors='g', linestyle='None', 
                 label='test removed')
-        plt.axis([days[0], days[confirmed_cases.size + 1], 0, 1750])
+        plt.axis([mdates.date2num(epidemics_start_date - dt.timedelta(days=1)), days[confirmed_cases.size + 1], -100, 1750])
         _ = fig.gca().xaxis.set_major_locator(mdates.DayLocator(interval=7))
+    
 
         
     _ = plt.gcf().autofmt_xdate()
@@ -263,12 +264,12 @@ def main():
     death_cases = np.loadtxt('data/cro/death_cases.dat')
     removed_cases = recovered_cases + death_cases
     
-    ratio = 1.0
-    train_confirmed_cases, test_confirmed_cases = train_test_split(confirmed_cases, ratio)
-    train_removed_cases, test_removed_cases = train_test_split(removed_cases, ratio)
+    # ratio = 0.9
+    # train_confirmed_cases, test_confirmed_cases = train_test_split(confirmed_cases, ratio)
+    # train_removed_cases, test_removed_cases = train_test_split(removed_cases, ratio)
     
-    # days since first case
-    x = np.arange(len(train_confirmed_cases))
+    # # days since first case
+    # x = np.arange(len(train_confirmed_cases))
 
     # # exp fit
     # exp_fit(x, train_confirmed_cases, test_confirmed_cases, n_future_days=len(test_confirmed_cases))
@@ -291,8 +292,8 @@ def main():
                                E0=0, 
                                I0=confirmed_cases[0], 
                                R0=recovered_cases[0], 
-                               confirmed_cases=confirmed_cases, 
-                               recovered_cases=recovered_cases, 
+                               confirmed_cases=confirmed_cases[:-1], 
+                               recovered_cases=recovered_cases[:-1], 
                                split_ratio=ratio, 
                                epidemics_start_date=start_date))
 
