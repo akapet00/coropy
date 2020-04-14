@@ -284,21 +284,21 @@ def main():
     # averaged_new_cases_v_total_cases(confirmed_cases, period=7)
 
     # susceptible-exposed-infected-recovered model
-    split_ratio = [0.88, 0.96, 1.0]
+    split_ratio = [1.0]
     R0 = np.empty(shape=(2, len(split_ratio)))
     R0[0, :] = np.array(split_ratio)
     for i, ratio in enumerate(split_ratio):
-        R0[1, i] = (seir_model(S0=5000, 
+        R0[1, i] = (seir_model(S0=7000, 
                                E0=0, 
                                I0=confirmed_cases[0], 
                                R0=recovered_cases[0], 
-                               confirmed_cases=confirmed_cases[:-1], 
-                               recovered_cases=recovered_cases[:-1], 
+                               confirmed_cases=confirmed_cases, 
+                               recovered_cases=removed_cases, 
                                split_ratio=ratio, 
                                epidemics_start_date=start_date))
 
-    file_name = f'reproduction_number/{dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.txt'
-    np.savetxt(file_name, R0)
+    # file_name = f'reproduction_number/{dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.txt'
+    # np.savetxt(file_name, R0)
     
 if __name__ == "__main__":
     main()
