@@ -19,12 +19,12 @@ def exp_fit(x, train_confirmed_cases, test_confirmed_cases, n_future_days):
     ax.plot(x, fitted, 'r-', label='exponential fit')
 
     # extrapolation 
-    _x, preds = exp_model.predict(n_future_days)
-    ax.plot(_x, preds, 'r--', label='predictions')
     ax.scatter(np.arange(len(train_confirmed_cases), 
                       len(train_confirmed_cases)+len(test_confirmed_cases), 1),
             test_confirmed_cases, facecolors='none', edgecolors='b', label='test data')
-
+    _x, preds = exp_model.predict(n_future_days)
+    ax.plot(_x, preds, 'r--', label='predictions')
+    
     plt.grid()
     plt.legend(loc='best')
     fig.savefig(f'figs/exp-fit.pdf', bbox_inches='tight')
@@ -62,8 +62,8 @@ def new_cases_plot(confirmed_cases, n_avg):
     fig = plt.figure(figsize=figsize(1,1))
     ax = fig.add_subplot(111)
     ax.plot(new_cases, 'bo-', alpha=0.7)
-    ax.set_xlabel('days since the first case')
-    ax.set_ylabel(f'new cases')
+    ax.set_xlabel('$t$')
+    ax.set_ylabel('$N$')
 
     plt.grid()
     fig.savefig(f'figs/{n_avg}-day-avg-conf-cases.pdf', bbox_inches='tight')
@@ -93,8 +93,8 @@ def averaged_new_cases_v_total_cases(confirmed_cases, period):
     fig = plt.figure(figsize=figsize(1,1))
     ax = fig.add_subplot(111)
     ax.loglog(confirmed_cases_periodically, new_cases, 'b-', label='data')
-    plt.xlabel(f'confirmed cases')
-    plt.ylabel(f'new cases')
+    plt.xlabel('$N_{total}$')
+    plt.ylabel('$N_{new}$')
 
     # fitting it linearly to check if the growth is exponential
     _x = np.linspace(0, np.max(confirmed_cases_periodically))
@@ -217,24 +217,24 @@ def seir_model(S0, E0, I0, R0, confirmed_cases, recovered_cases, split_ratio, ep
     _ = fig.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
     _ = fig.gca().xaxis.set_major_locator(mdates.DayLocator(interval=20))
 
-    #ax.plot(days, sol.y[0], 'k-', label='susceptible')
-    #ax.plot(days, sol.y[1], 'b-', label='exposed')
-    ax.plot(days, sol.y[2], 'r-', label='infected')
-    ax.plot(days, sol.y[3], 'g-', label='recovered/diceased')
+    #ax.plot(days, sol.y[0], 'k-', label='S(t)')
+    #ax.plot(days, sol.y[1], 'b-', label='E(t)')
+    ax.plot(days, sol.y[2], 'r-', label='$I(t)$')
+    ax.plot(days, sol.y[3], 'g-', label='$R(t)$')
     ax.plot(days[:len(train_confirmed_cases)],
             train_confirmed_cases, 
             linestyle='None', marker='o', color='red', alpha=0.7, 
-            label='fitted confirmed')
+            label='infected data')
     ax.plot(days[:len(train_recovered_cases)],
             train_recovered_cases, 
             linestyle='None', marker='o', color='green', alpha=0.7, 
-            label='fitted removed')
+            label='removed data')
 
     if test_confirmed_cases.size > 0:
         ax.scatter(days[len(train_confirmed_cases):len(train_confirmed_cases)+len(test_confirmed_cases)], 
                 test_confirmed_cases, 
                 facecolors='none', edgecolors='r', linestyle='None', 
-                label='test confirmed')
+                label='test infected')
 
         ax.scatter(days[len(train_recovered_cases):len(train_recovered_cases)+len(test_recovered_cases)], 
                 test_recovered_cases, 
@@ -246,11 +246,11 @@ def seir_model(S0, E0, I0, R0, confirmed_cases, recovered_cases, split_ratio, ep
 
         
     _ = plt.gcf().autofmt_xdate()
-    plt.ylabel('number of people')
+    plt.ylabel('$N$')
 
     plt.grid()
     plt.legend(loc='best')
-    fig.savefig(f'figs/seir-{split_ratio}-split-ratio.pdf', bbox_inches='tight')
+    #fig.savefig(f'figs/seir-{split_ratio}-split-ratio.pdf', bbox_inches='tight')
     plt.show()
     return R0
 
@@ -264,12 +264,12 @@ def main():
     death_cases = np.loadtxt('data/cro/death_cases.dat')
     removed_cases = recovered_cases + death_cases
     
-    # ratio = 0.9
-    # train_confirmed_cases, test_confirmed_cases = train_test_split(confirmed_cases, ratio)
-    # train_removed_cases, test_removed_cases = train_test_split(removed_cases, ratio)
+    ratio = 0.9
+    train_confirmed_cases, test_confirmed_cases = train_test_split(confirmed_cases[:-4], ratio)
+    train_removed_cases, test_removed_cases = train_test_split(removed_cases[:-4], ratio)
     
-    # # days since first case
-    # x = np.arange(len(train_confirmed_cases))
+    # days since first case
+    x = np.arange(len(train_confirmed_cases))
 
     # # exp fit
     # exp_fit(x, train_confirmed_cases, test_confirmed_cases, n_future_days=len(test_confirmed_cases))
@@ -278,10 +278,10 @@ def main():
     # logit_fit(x, train_confirmed_cases, test_confirmed_cases, n_future_days=len(test_confirmed_cases))
 
     # # new cases averaged 
-    # new_cases_plot(confirmed_cases, n_avg=7)
+    # new_cases_plot(confirmed_cases[:-4], n_avg=7)
 
     # # new cases v total cases averaged
-    # averaged_new_cases_v_total_cases(confirmed_cases, period=7)
+    # averaged_new_cases_v_total_cases(confirmed_cases[:-4], period=7)
 
     # susceptible-exposed-infected-recovered model
     split_ratio = [1.0]
@@ -296,7 +296,7 @@ def main():
                                recovered_cases=removed_cases, 
                                split_ratio=ratio, 
                                epidemics_start_date=start_date))
-
+    print(R0)
     # file_name = f'reproduction_number/{dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.txt'
     # np.savetxt(file_name, R0)
     

@@ -73,10 +73,10 @@ def plotData(x, data, log=False, *args):
         l = 'log'
         ax.plot(np.log10(confirmed), marker='o', alpha=0.7,
                 linestyle='None', color='blue', 
-                label='log of the number of confirmed cases')
+                label='log # of confirmed cases')
 
-    ax.set_xlabel('days since the first case')
-    ax.set_ylabel('{} confirmed cases'.format(l))
+    ax.set_xlabel('$t$')
+    ax.set_ylabel('{} $N$'.format(l))
     
     return fig, ax
 
