@@ -242,15 +242,13 @@ def seir_model(S0, E0, I0, R0, confirmed_cases, recovered_cases, split_ratio, ep
                 label='test removed')
         plt.axis([mdates.date2num(epidemics_start_date - dt.timedelta(days=1)), days[confirmed_cases.size + 1], -100, 1750])
         _ = fig.gca().xaxis.set_major_locator(mdates.DayLocator(interval=7))
-    
-
         
     _ = plt.gcf().autofmt_xdate()
     plt.ylabel('$N$')
 
     plt.grid()
     plt.legend(loc='best')
-    #fig.savefig(f'figs/seir-{split_ratio}-split-ratio.pdf', bbox_inches='tight')
+    fig.savefig(f'figs/seir-{split_ratio}-split-ratio.pdf', bbox_inches='tight')
     plt.show()
     return R0
 
@@ -296,9 +294,9 @@ def main():
                                recovered_cases=removed_cases, 
                                split_ratio=ratio, 
                                epidemics_start_date=start_date))
-    print(R0)
-    # file_name = f'reproduction_number/{dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.txt'
-    # np.savetxt(file_name, R0)
+
+    file_name = f'reproduction_number/{dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.txt'
+    np.savetxt(file_name, R0)
     
 if __name__ == "__main__":
     main()
