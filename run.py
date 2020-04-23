@@ -27,7 +27,7 @@ def exp_fit(x, train_confirmed_cases, test_confirmed_cases, n_future_days):
     
     plt.grid()
     plt.legend(loc='best')
-    fig.savefig(f'figs/exp-fit.pdf', bbox_inches='tight')
+    #fig.savefig(f'figs/exp-fit.pdf', bbox_inches='tight')
     plt.show()
 
 def logit_fit(x, train_confirmed_cases, test_confirmed_cases, n_future_days):
@@ -47,7 +47,7 @@ def logit_fit(x, train_confirmed_cases, test_confirmed_cases, n_future_days):
 
     plt.grid()
     plt.legend(loc='best')
-    fig.savefig(f'figs/logit-fit.pdf', bbox_inches='tight')
+    #fig.savefig(f'figs/logit-fit.pdf', bbox_inches='tight')
     plt.show()
 
 def new_cases_plot(confirmed_cases, n_avg):
@@ -66,7 +66,7 @@ def new_cases_plot(confirmed_cases, n_avg):
     ax.set_ylabel('$N$')
 
     plt.grid()
-    fig.savefig(f'figs/{n_avg}-day-avg-conf-cases.pdf', bbox_inches='tight')
+    #fig.savefig(f'figs/{n_avg}-day-avg-conf-cases.pdf', bbox_inches='tight')
     plt.show()
 
 def averaged_new_cases_v_total_cases(confirmed_cases, period):
@@ -107,7 +107,7 @@ def averaged_new_cases_v_total_cases(confirmed_cases, period):
 
     plt.grid()
     plt.legend()
-    fig.savefig(f'figs/new-v-total.pdf', bbox_inches='tight')
+    #fig.savefig(f'figs/new-v-total.pdf', bbox_inches='tight')
     plt.show()
 
 def gaussian_processes_extrapolation(x, confirmed_cases, train_confirmed_cases, test_confirmed_cases):
@@ -248,12 +248,12 @@ def seir_model(S0, E0, I0, R0, confirmed_cases, recovered_cases, split_ratio, ep
 
     plt.grid()
     plt.legend(loc='best')
-    fig.savefig(f'figs/seir-{split_ratio}-split-ratio.pdf', bbox_inches='tight')
+    #fig.savefig(f'figs/seir-{split_ratio}-split-ratio.pdf', bbox_inches='tight')
     plt.show()
     return R0
 
 def main():
-    latexconfig()
+    #latexconfig()
 
     # cro data
     start_date = dt.datetime(2020, 2, 25)
@@ -279,7 +279,7 @@ def main():
     # new_cases_plot(confirmed_cases[:-4], n_avg=7)
 
     # # new cases v total cases averaged
-    # averaged_new_cases_v_total_cases(confirmed_cases[:-4], period=7)
+    averaged_new_cases_v_total_cases(confirmed_cases[:-4], period=7)
 
     # susceptible-exposed-infected-recovered model
     split_ratio = [1.0]
