@@ -206,7 +206,7 @@ def seir_model(S0, E0, I0, R0, confirmed_cases, recovered_cases, split_ratio, ep
 
     seir_model = SEIR()
     beta, delta, alpha, gamma = seir_model.fit(train_confirmed_cases, train_recovered_cases, initial_conditions)
-    R0 = beta/(delta+gamma)
+    R0 = beta/(alpha+gamma)
     sol = seir_model.predict(n_future_days)
 
     end = epidemics_start_date + dt.timedelta(days=n_future_days)    
@@ -242,13 +242,16 @@ def seir_model(S0, E0, I0, R0, confirmed_cases, recovered_cases, split_ratio, ep
                 label='test removed')
         plt.axis([mdates.date2num(epidemics_start_date - dt.timedelta(days=1)), days[confirmed_cases.size + 1], -100, 1750])
         _ = fig.gca().xaxis.set_major_locator(mdates.DayLocator(interval=7))
+
+        plt.legend(loc='best')
+    else:
+        plt.legend(loc='lower right')
         
     _ = plt.gcf().autofmt_xdate()
     plt.ylabel('$N$')
 
     plt.grid()
-    plt.legend(loc='best')
-    #fig.savefig(f'figs/seir-{split_ratio}-split-ratio.pdf', bbox_inches='tight')
+    fig.savefig(f'figs/seir-{split_ratio}-split-ratio.pdf', bbox_inches='tight')
     plt.show()
     return R0
 
@@ -261,13 +264,20 @@ def main():
     recovered_cases = np.loadtxt('data/cro/recovered_cases.dat')
     death_cases = np.loadtxt('data/cro/death_cases.dat')
     removed_cases = recovered_cases + death_cases
+    active_cases = confirmed_cases - removed_cases
+
+    # cro data until 11th April -> SpliTech paper
+    end_date = dt.datetime(2020, 4, 10) 
+    diff = abs((end_date - start_date).days)
+    removed_cases = removed_cases[:diff + 1]
+    active_cases = active_cases[:diff + 1]
+
+    # ratio = 0.9
+    # train_confirmed_cases, test_confirmed_cases = train_test_split(confirmed_cases[:-4], ratio)
+    # train_removed_cases, test_removed_cases = train_test_split(removed_cases[:-4], ratio)
     
-    ratio = 0.9
-    train_confirmed_cases, test_confirmed_cases = train_test_split(confirmed_cases[:-4], ratio)
-    train_removed_cases, test_removed_cases = train_test_split(removed_cases[:-4], ratio)
-    
-    # days since first case
-    x = np.arange(len(train_confirmed_cases))
+    # # days since first case
+    # x = np.arange(len(train_confirmed_cases))
 
     # # exp fit
     # exp_fit(x, train_confirmed_cases, test_confirmed_cases, n_future_days=len(test_confirmed_cases))
@@ -282,21 +292,22 @@ def main():
     # saveraged_new_cases_v_total_cases(confirmed_cases[:-4], period=7)
 
     # susceptible-exposed-infected-recovered model
-    split_ratio = [1.0]
+    split_ratio = [0.8, 0.88, 1.0]
     R0 = np.empty(shape=(2, len(split_ratio)))
     R0[0, :] = np.array(split_ratio)
     for i, ratio in enumerate(split_ratio):
-        R0[1, i] = (seir_model(S0=5000, 
-                               E0=0, 
-                               I0=confirmed_cases[0], 
-                               R0=recovered_cases[0], 
-                               confirmed_cases=confirmed_cases, 
-                               recovered_cases=removed_cases, 
-                               split_ratio=ratio, 
-                               epidemics_start_date=start_date))
+        R0[1, i] = seir_model(S0=2200, 
+                              E0=0, 
+                              I0=active_cases[0], 
+                              R0=removed_cases[0], 
+                              confirmed_cases=active_cases, 
+                              recovered_cases=removed_cases, 
+                              split_ratio=ratio, 
+                              epidemics_start_date=start_date)
 
-    # file_name = f'reproduction_number/{dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.txt'
-    # np.savetxt(file_name, R0)
+    file_name = f'data/reproduction_number/cro_{dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.txt'
+    np.savetxt(file_name, R0)
     
 if __name__ == "__main__":
+    latexconfig()
     main()
