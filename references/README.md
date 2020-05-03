@@ -16,18 +16,6 @@
 
 ---
 
-* References for Gaussian processes:
-    
-    [1] [A Visual Exploration of Gaussian Processes](https://distill.pub/2019/visual-exploration-gaussian-processes/) - distil.pub blog post based on [2]
-
-    [2] [Gaussian Processes in Machine Learning](https://link.springer.com/chapter/10.1007%2F978-3-540-28650-9_4) - 2003. Carl Edward Rasmussen's primer on Gaussian Processes
-
-    [3] [Gaussian Processes - A Replacement for Supervised Neural Networks?](https://scholar.google.com/scholar?q=MacKay%2C%20D.J.C.%3A%20Gaussian%20processes%20%E2%80%94%20a%20replacement%20for%20supervised%20neural%20networks%3F.%20Tutorial%20lecture%20notes%20for%20NIPS%201997%20%281997%29) - 1997. D. MacKay's paper
-    
-    [4] hands-on blog posts: https://blog.dominodatalab.com/fitting-gaussian-process-models-python/
-
----
-
 * References for SIR:
     
     [1] [Introduction to SEIR Models - Swiss TPH](http://indico.ictp.it/event/7960/session/3/#20170508) - 2017. Nakul Chitnis' presentation on SEIR Model
