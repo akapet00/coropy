@@ -34,9 +34,9 @@
     
     [2] [Mathematical Theory of Epidemics I](https://link.springer.com/article/10.1007/BF02464423) - 1927. W. O. Kermack & A. G. McKendrick - I. 
     
-    [3] [Mathematical Theory of Epidemics II - The Problem of Endemicity](https://www.sciencedirect.com/science/article/abs/pii/S0092824005800412) - 1927. W. O. Kermack & A. G. McKendrick - II. 
+    [3] [Mathematical Theory of Epidemics II - The Problem of Endemicity](https://www.sciencedirect.com/science/article/abs/pii/S0092824005800412) - 1932. W. O. Kermack & A. G. McKendrick - II. 
     
-    [4] [Mathematical Theory of Epidemics III - Further Studies of the Problem of Endemicity](https://www.sciencedirect.com/science/article/abs/pii/S0092824005800424) - 1927. W. O. Kermack & A. G. McKendrick - III.
+    [4] [Mathematical Theory of Epidemics III - Further Studies of the Problem of Endemicity](https://www.sciencedirect.com/science/article/abs/pii/S0092824005800424) - 1933. W. O. Kermack & A. G. McKendrick - III.
     
     [5] [Measurement and Modeling - Infectious Disease Modeling](https://www.sciencedirect.com/science/article/pii/B9780128036785002290?via%3Dihub) - 2016. Mirjam Kretzschmar's Measurement and Modeling: Infectious Disease Modeling chapter in International Encyclopedia of Public Health
      
