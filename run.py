@@ -217,8 +217,8 @@ def seir_model(S0, E0, I0, R0, confirmed_cases, recovered_cases, split_ratio, ep
     _ = fig.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
     _ = fig.gca().xaxis.set_major_locator(mdates.DayLocator(interval=20))
 
-    #ax.plot(days, sol.y[0], 'k-', label='S(t)')
-    #ax.plot(days, sol.y[1], 'b-', label='E(t)')
+    ax.plot(days, sol.y[0], 'k-', label='$S(t)$')
+    ax.plot(days, sol.y[1], 'b-', label='$E(t)$')
     ax.plot(days, sol.y[2], 'r-', label='$I(t)$')
     ax.plot(days, sol.y[3], 'g-', label='$R(t)$')
     ax.plot(days[:len(train_confirmed_cases)],
@@ -251,7 +251,7 @@ def seir_model(S0, E0, I0, R0, confirmed_cases, recovered_cases, split_ratio, ep
     plt.ylabel('$N$')
 
     plt.grid()
-    fig.savefig(f'figs/seir-{split_ratio}-split-ratio.pdf', bbox_inches='tight')
+    #fig.savefig(f'figs/seir-{split_ratio}-split-ratio.pdf', bbox_inches='tight')
     plt.show()
     return R0
 
@@ -266,11 +266,11 @@ def main():
     removed_cases = recovered_cases + death_cases
     active_cases = confirmed_cases - removed_cases
 
-    # cro data until 11th April -> SpliTech paper
-    end_date = dt.datetime(2020, 4, 10) 
-    diff = abs((end_date - start_date).days)
-    removed_cases = removed_cases[:diff + 1]
-    active_cases = active_cases[:diff + 1]
+    # # cro data until 11th April -> SpliTech paper
+    # end_date = dt.datetime(2020, 4, 10) 
+    # diff = abs((end_date - start_date).days)
+    # removed_cases = removed_cases[:diff + 1]
+    # active_cases = active_cases[:diff + 1]
 
     # ratio = 0.9
     # train_confirmed_cases, test_confirmed_cases = train_test_split(confirmed_cases[:-4], ratio)
@@ -292,7 +292,7 @@ def main():
     # saveraged_new_cases_v_total_cases(confirmed_cases[:-4], period=7)
 
     # susceptible-exposed-infected-recovered model
-    split_ratio = [0.8, 0.88, 1.0]
+    split_ratio = [0.99]
     R0 = np.empty(shape=(2, len(split_ratio)))
     R0[0, :] = np.array(split_ratio)
     for i, ratio in enumerate(split_ratio):
@@ -304,9 +304,9 @@ def main():
                               recovered_cases=removed_cases, 
                               split_ratio=ratio, 
                               epidemics_start_date=start_date)
-
-    file_name = f'data/reproduction_number/cro_{dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.txt'
-    np.savetxt(file_name, R0)
+    print(R0)
+    # file_name = f'data/reproduction_number/cro_{dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.txt'
+    # np.savetxt(file_name, R0)
     
 if __name__ == "__main__":
     latexconfig()
