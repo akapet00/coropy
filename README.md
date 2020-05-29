@@ -6,6 +6,18 @@ This repository contains the code base for the graduate course in [Modeling and 
 
 Check the `environment.yml` file.
 
+## Citation
+```citation
+@article{kapetanovic2020covid,
+    title={{Modeling the Epidemic Outbreak and Dynamics of COVID-19 in Croatia}},
+    author={Ante Lojic Kapetanovic and Dragan Poljak},
+    year={2020},
+    eprint={2005.01434},
+    archivePrefix={arXiv},
+    primaryClass={q-bio.PE}
+}
+```
+
 ## License
 
 [MIT](https://github.com/antelk/covid-19/blob/master/LICENSE)
