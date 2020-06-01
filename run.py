@@ -286,10 +286,10 @@ def main():
     # logit_fit(x, train_confirmed_cases, test_confirmed_cases, n_future_days=len(test_confirmed_cases))
 
     # # new cases averaged 
-    # new_cases_plot(confirmed_cases[:-4], n_avg=7)
+    new_cases_plot(confirmed_cases[:-4], n_avg=7)
 
     # # new cases v total cases averaged
-    # saveraged_new_cases_v_total_cases(confirmed_cases[:-4], period=7)
+    averaged_new_cases_v_total_cases(confirmed_cases[:-4], period=7)
 
     # susceptible-exposed-infected-recovered model
     split_ratio = [0.99]
