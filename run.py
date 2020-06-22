@@ -231,14 +231,14 @@ def seir_model(S0, E0, I0, R0, confirmed_cases, recovered_cases, split_ratio, ep
             label='removed data')
 
     if test_confirmed_cases.size > 0:
-        ax.scatter(days[len(train_confirmed_cases):len(train_confirmed_cases)+len(test_confirmed_cases)], 
-                test_confirmed_cases, 
-                facecolors='none', edgecolors='r', linestyle='None', 
+        ax.scatter(days[len(train_confirmed_cases):len(train_confirmed_cases)+len(test_confirmed_cases)],
+                test_confirmed_cases,
+                facecolors='none', edgecolors='r', linestyle='None',
                 label='test infected')
 
-        ax.scatter(days[len(train_recovered_cases):len(train_recovered_cases)+len(test_recovered_cases)], 
-                test_recovered_cases, 
-                facecolors='none', edgecolors='g', linestyle='None', 
+        ax.scatter(days[len(train_recovered_cases):len(train_recovered_cases)+len(test_recovered_cases)],
+                test_recovered_cases,
+                facecolors='none', edgecolors='g', linestyle='None',
                 label='test removed')
         plt.axis([mdates.date2num(epidemics_start_date - dt.timedelta(days=1)), days[confirmed_cases.size + 1], -100, 1750])
         _ = fig.gca().xaxis.set_major_locator(mdates.DayLocator(interval=7))
@@ -246,7 +246,7 @@ def seir_model(S0, E0, I0, R0, confirmed_cases, recovered_cases, split_ratio, ep
         plt.legend(loc='best')
     else:
         plt.legend(loc='lower right')
-        
+
     _ = plt.gcf().autofmt_xdate()
     plt.ylabel('$N$')
 
@@ -260,9 +260,9 @@ def main():
 
     # cro data
     start_date = dt.datetime(2020, 2, 25)
-    confirmed_cases = np.loadtxt('data/cro/confirmed_cases.dat')
-    recovered_cases = np.loadtxt('data/cro/recovered_cases.dat')
-    death_cases = np.loadtxt('data/cro/death_cases.dat')
+    confirmed_cases = np.loadtxt('data/confirmed_cases.dat')
+    recovered_cases = np.loadtxt('data/recovered_cases.dat')
+    death_cases = np.loadtxt('data/death_cases.dat')
     removed_cases = recovered_cases + death_cases
     active_cases = confirmed_cases - removed_cases
 
@@ -275,7 +275,7 @@ def main():
     # ratio = 0.9
     # train_confirmed_cases, test_confirmed_cases = train_test_split(confirmed_cases[:-4], ratio)
     # train_removed_cases, test_removed_cases = train_test_split(removed_cases[:-4], ratio)
-    
+
     # # days since first case
     # x = np.arange(len(train_confirmed_cases))
 
@@ -296,18 +296,18 @@ def main():
     R0 = np.empty(shape=(2, len(split_ratio)))
     R0[0, :] = np.array(split_ratio)
     for i, ratio in enumerate(split_ratio):
-        R0[1, i] = seir_model(S0=2200, 
-                              E0=0, 
-                              I0=active_cases[0], 
-                              R0=removed_cases[0], 
-                              confirmed_cases=active_cases, 
-                              recovered_cases=removed_cases, 
-                              split_ratio=ratio, 
+        R0[1, i] = seir_model(S0=2200,
+                              E0=0,
+                              I0=active_cases[0],
+                              R0=removed_cases[0],
+                              confirmed_cases=active_cases,
+                              recovered_cases=removed_cases,
+                              split_ratio=ratio,
                               epidemics_start_date=start_date)
     print(R0)
     # file_name = f'data/reproduction_number/cro_{dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.txt'
     # np.savetxt(file_name, R0)
-    
+
 if __name__ == "__main__":
     latexconfig()
     main()
