@@ -100,7 +100,7 @@ def averaged_new_cases_v_total_cases(confirmed_cases, period):
     _x = np.linspace(0, np.max(confirmed_cases_periodically))
     k, b = np.polyfit(np.log(confirmed_cases_periodically), np.log(new_cases), 1)
     y = _x**k * np.exp(b)
-    ax.plot(_x, y, 'r-', label='loglinear fit')
+    #ax.plot(_x, y, 'r-', label='loglinear fit')
 
     # exponential growth ground
     ax.plot(_x, _x, 'k:', label='exponential growth')
@@ -286,13 +286,13 @@ def main():
     # logit_fit(x, train_confirmed_cases, test_confirmed_cases, n_future_days=len(test_confirmed_cases))
 
     # # new cases averaged 
-    new_cases_plot(confirmed_cases[:-4], n_avg=7)
+    # new_cases_plot(confirmed_cases[:-4], n_avg=7)
 
     # # new cases v total cases averaged
-    averaged_new_cases_v_total_cases(confirmed_cases[:-4], period=7)
+    averaged_new_cases_v_total_cases(confirmed_cases, period=7)
 
     # susceptible-exposed-infected-recovered model
-    split_ratio = [0.99]
+    split_ratio = [1]
     R0 = np.empty(shape=(2, len(split_ratio)))
     R0[0, :] = np.array(split_ratio)
     for i, ratio in enumerate(split_ratio):
