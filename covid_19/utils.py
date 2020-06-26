@@ -1,5 +1,4 @@
 import numpy as np  
-from sklearn.metrics import mean_squared_error
 
 def normalize(data):
     return (data - np.min(data)) / (np.max(data) - np.min(data))
@@ -12,8 +11,11 @@ def moving_average(y, n=3) :
     ret[n:] = ret[n:] - ret[:-n]
     return ret[n - 1:] / n
 
-def RMSE(true_vals, preds):
-    return np.sqrt(mean_squared_error(true_vals, preds))
+def mse(true_vals, preds):
+    return np.mean((true_vals - preds)**2)
+
+def rmse(true_vals, preds):
+    return np.sqrt(mse(true_vals, preds))
 
 def train_test_split(data, ratio):
     train_size = int(ratio * len(data))
@@ -44,7 +46,7 @@ if __name__ == "__main__":
     preds = np.r_[np.arange(0, 9, 1), np.array([8])]
     print(trues)
     print(preds)
-    print(f'RMSE: {RMSE(trues, preds)}\n')
+    print(f'RMSE: {rmse(trues, preds)}\n')
     full = np.array([1, 2, 3, 4, 5])
     ratio = .8
     train, test = train_test_split(full, ratio)
