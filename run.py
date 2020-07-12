@@ -2,8 +2,6 @@ import datetime as dt
 import numpy as np 
 import matplotlib.pyplot as plt 
 import matplotlib.dates as mdates
-from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import Matern, WhiteKernel, ConstantKernel
 from sklearn.metrics import r2_score
 
 from covid_19.utils import normalize, restore, moving_average, train_test_split
@@ -14,11 +12,12 @@ from covid_19.compartmental_models import SIR, SEIR
 def exp_fit(x, train_confirmed_cases, test_confirmed_cases, n_future_days):
     fig, ax = plotData(x, train_confirmed_cases, False, 1)
 
+    # fit to data
     exp_model = ExponentialModel(normalize=False)
     fitted, _ = exp_model.fit(x, train_confirmed_cases)
     ax.plot(x, fitted, 'r-', label='exponential fit')
 
-    # extrapolation 
+    # extrapolation
     ax.scatter(np.arange(len(train_confirmed_cases), 
                       len(train_confirmed_cases)+len(test_confirmed_cases), 1),
             test_confirmed_cases, facecolors='none', edgecolors='b', label='test data')
@@ -33,7 +32,7 @@ def exp_fit(x, train_confirmed_cases, test_confirmed_cases, n_future_days):
 def logit_fit(x, train_confirmed_cases, test_confirmed_cases, n_future_days):
     fig, ax, = plotData(x, train_confirmed_cases, False, 1)
 
-    # logistic fit on data
+    # fit to data
     logit_model = LogisticModel(normalize=True)
     fitted, _ = logit_model.fit(x, train_confirmed_cases)
     ax.plot(x, fitted, 'r-', label='logistic fit')
@@ -100,7 +99,7 @@ def averaged_new_cases_v_total_cases(confirmed_cases, period):
     _x = np.linspace(0, np.max(confirmed_cases_periodically))
     k, b = np.polyfit(np.log(confirmed_cases_periodically), np.log(new_cases), 1)
     y = _x**k * np.exp(b)
-    #ax.plot(_x, y, 'r-', label='loglinear fit')
+    ax.plot(_x, y, 'r-', label='loglinear fit')
 
     # exponential growth ground
     ax.plot(_x, _x, 'k:', label='exponential growth')
@@ -110,6 +109,7 @@ def averaged_new_cases_v_total_cases(confirmed_cases, period):
     #fig.savefig(f'figs/new-v-total.pdf', bbox_inches='tight')
     plt.show()
 
+# deprecated
 def gaussian_processes_extrapolation(x, confirmed_cases, train_confirmed_cases, test_confirmed_cases):
     # normalize the data
     normalized_train_confirmed_cases = normalize(train_confirmed_cases)
@@ -194,7 +194,7 @@ def sir_model(S0, I0, R0, confirmed_cases, recovered_cases, split_ratio, epidemi
 
     plt.grid()
     plt.legend(loc='upper right')
-    fig.savefig(f'figs/sir.pdf', bbox_inches='tight')
+    #fig.savefig(f'figs/sir.pdf', bbox_inches='tight')
     plt.show()
 
 def seir_model(S0, E0, I0, R0, confirmed_cases, recovered_cases, split_ratio, epidemics_start_date):
@@ -256,9 +256,7 @@ def seir_model(S0, E0, I0, R0, confirmed_cases, recovered_cases, split_ratio, ep
     return R0
 
 def main():
-    #latexconfig()
-
-    # cro data
+    # data
     start_date = dt.datetime(2020, 2, 25)
     confirmed_cases = np.loadtxt('data/confirmed_cases.dat')
     recovered_cases = np.loadtxt('data/recovered_cases.dat')
@@ -266,29 +264,29 @@ def main():
     removed_cases = recovered_cases + death_cases
     active_cases = confirmed_cases - removed_cases
 
-    # # cro data until 11th April -> SpliTech paper
-    # end_date = dt.datetime(2020, 4, 10) 
-    # diff = abs((end_date - start_date).days)
-    # removed_cases = removed_cases[:diff + 1]
-    # active_cases = active_cases[:diff + 1]
+    # cro data until 11th April -> SpliTech paper
+    end_date = dt.datetime(2020, 4, 10) 
+    diff = abs((end_date - start_date).days)
+    removed_cases = removed_cases[:diff + 1]
+    active_cases = active_cases[:diff + 1]
 
-    # ratio = 0.9
-    # train_confirmed_cases, test_confirmed_cases = train_test_split(confirmed_cases[:-4], ratio)
-    # train_removed_cases, test_removed_cases = train_test_split(removed_cases[:-4], ratio)
+    ratio = 0.9
+    train_confirmed_cases, test_confirmed_cases = train_test_split(confirmed_cases[:-4], ratio)
+    train_removed_cases, test_removed_cases = train_test_split(removed_cases[:-4], ratio)
 
-    # # days since first case
-    # x = np.arange(len(train_confirmed_cases))
+    # days since first case
+    x = np.arange(len(train_confirmed_cases))
 
-    # # exp fit
-    # exp_fit(x, train_confirmed_cases, test_confirmed_cases, n_future_days=len(test_confirmed_cases))
+    # exp fit
+    exp_fit(x, train_confirmed_cases, test_confirmed_cases, n_future_days=len(test_confirmed_cases))
 
-    # # logit fit 
-    # logit_fit(x, train_confirmed_cases, test_confirmed_cases, n_future_days=len(test_confirmed_cases))
+    # logit fit 
+    logit_fit(x, train_confirmed_cases, test_confirmed_cases, n_future_days=len(test_confirmed_cases))
 
-    # # new cases averaged 
-    # new_cases_plot(confirmed_cases[:-4], n_avg=7)
+    # new cases averaged 
+    new_cases_plot(confirmed_cases[:-4], n_avg=7)
 
-    # # new cases v total cases averaged
+    # new cases v total cases averaged
     averaged_new_cases_v_total_cases(confirmed_cases, period=7)
 
     # susceptible-exposed-infected-recovered model
@@ -305,6 +303,7 @@ def main():
                               split_ratio=ratio,
                               epidemics_start_date=start_date)
     print(R0)
+
     # file_name = f'data/reproduction_number/cro_{dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.txt'
     # np.savetxt(file_name, R0)
 
