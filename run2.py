@@ -83,17 +83,17 @@ diff = abs((end_date_1 - start_date_1).days)
 removed_cases_1 = removed_cases[:diff+1]
 active_cases_1 = active_cases[:diff+1]
 
-# split_ratio = 1
-# R0 = seir_sim(
-#     S0=2500,
-#     E0=0,
-#     I0=active_cases_1[0],
-#     R0=removed_cases_1[0],
-#     confirmed_cases=active_cases_1,
-#     recovered_cases=removed_cases_1,
-#     split_ratio=split_ratio,
-#     epidemics_start_date=start_date_1,
-#     )
+#split_ratio = 1
+#R0 = seir_sim(
+#    S0=2500,
+#    E0=0,
+#    I0=active_cases_1[0],
+#    R0=removed_cases_1[0],
+#    confirmed_cases=active_cases_1,
+#    recovered_cases=removed_cases_1,
+#    split_ratio=split_ratio,
+#    epidemics_start_date=start_date_1,
+#    )
 
 ############ 
 # 2nd wave #
@@ -102,9 +102,9 @@ start_date_2 = dt.datetime(2020, 6, 5)
 removed_cases_2 = removed_cases[diff+1:] - removed_cases[diff+1]
 active_cases_2 = active_cases[diff+1:]
 
-split_ratio = 1
+split_ratio = 0.85
 R0 = seir_sim(
-    S0=5000,
+    S0=4000,
     E0=0,
     I0=active_cases_2[0],
     R0=removed_cases_2[0],
