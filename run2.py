@@ -102,7 +102,7 @@ start_date_2 = dt.datetime(2020, 6, 5)
 removed_cases_2 = removed_cases[diff+1:] - removed_cases[diff+1]
 active_cases_2 = active_cases[diff+1:]
 
-split_ratio = 0.85
+split_ratio = 1.
 R0 = seir_sim(
     S0=4000,
     E0=0,
