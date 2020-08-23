@@ -1,0 +1,9 @@
+# This file may be used to create a conda environment using:
+# $ conda create --file conda_env.yml
+
+name: covid_19
+dependencies:
+  - python>3.6
+  - scipy
+  - numpy
+  - matplotlib
