@@ -1,26 +1,29 @@
-import matplotlib.pyplot as plt 
+import datetime as dt
+
 from matplotlib import dates as mdates
 from matplotlib import rcParams 
+import matplotlib.pyplot as plt 
 import numpy as np
-import datetime as dt 
+
 
 def latexconfig():
-    """Paper ready plots; standard LaTeX configuration."""
-    pgf_latex = {                                       # setup matplotlib to use latex for output
-        "pgf.texsystem": "pdflatex",                    # change this if using xetex or lautex
-        "text.usetex": True,                            # use LaTeX to write all text
-        "axes.labelsize": 10,                           # LaTeX default is 10pt font
-        "font.size": 12,                                # LaTeX default is 10pt font
-        "legend.fontsize": 12,                          # Make the legend/label fonts a little smaller
+    """Configure aper ready plots - standard LaTeX configuration."""
+    pgf_latex = {
+        "pgf.texsystem": "pdflatex",
+        "text.usetex": True,
+        "axes.labelsize": 10,
+        "font.size": 12,
+        "legend.fontsize": 12,
         "xtick.labelsize": 12,
         "ytick.labelsize": 12,
-        "figure.figsize": figsize(1.0),                 # default fig size of 0.9 textwidth
+        "figure.figsize": figsize(1.0),
         "pgf.preamble": [
-            r"\usepackage[utf8x]{inputenc}",            # utf8 input support
-            r"\usepackage[T1]{fontenc}",                # plots will be generated using this preamble
+            r"\usepackage[utf8x]{inputenc}",
+            r"\usepackage[T1]{fontenc}",
             ]
         }
     rcParams.update(pgf_latex)
+
 
 def figsize(scale, nplots=1):
     """Golden ratio between the width and height: the ratio 
@@ -31,56 +34,69 @@ def figsize(scale, nplots=1):
     -------------- = --------
          width        width
 
-    Props for the code goes to: https://github.com/maziarraissi/PINNs/blob/master/Utilities/plotting.py
+    Props for the code goes to: 
+    https://github.com/maziarraissi/PINNs/blob/master/Utilities/plotting.py
+
+    Parameters
+    ----------
+    scale : float
+        Figure scaled to `scale`.
+    nplots : int
+        Number of plots in a figure.
+
+    Returns
+    -------
+    tuple
+        Figure size.
     """
-    fig_width_pt = 390.0                                # LaTeX \the\textwidth
-    inches_per_pt = 1.0/72.27                           # Convert pt to inch
-    golden_mean = (np.sqrt(5.0)-1.0)/2.0                # Aesthetic ratio
-    fig_width = fig_width_pt*inches_per_pt*scale        # width in inches
-    fig_height = fig_width*golden_mean*nplots           # height in inches
+    fig_width_pt = 390.0 # LaTeX \textwidth
+    inches_per_pt = 1.0/72.27
+    golden_mean = (np.sqrt(5.0)-1.0)/2.0
+    fig_width = fig_width_pt*inches_per_pt*scale
+    fig_height = fig_width*golden_mean*nplots
     fig_size = [fig_width,fig_height]
     return fig_size
 
-def plotData(x, data, log=False, *args):
-    """Plot the data in log or linear scale."""     
-    if isinstance(data, np.ndarray):
-        confirmed = data
-    else: raise ValueError('np.ndarray data type is required.')
 
-    if args:
-        if len(args) == 1:
-            scale = args[0]
-            nplots = 1
-        elif len(args) == 2:
-            scale, nplots = args
-        else: raise ValueError('Too many items to unpack.')
-    else:
-        scale = 1
-        nplots = 1
+def plot_data(epidemics_start_date, confirmed_cases, recovered_cases, death_cases):
+    """Plot time series data.
     
-    fig = plt.figure(figsize=figsize(scale, nplots))
-    ax = fig.add_subplot(111)
-    if not log:
-        l = ''
-        ax.plot(confirmed, marker='o', alpha=0.7,
-                linestyle='None', color='blue', 
-                label='confirmed cases')
-    else:
-        l = 'log'
-        ax.plot(np.log10(confirmed), marker='o', alpha=0.7,
-                linestyle='None', color='blue', 
-                label='log # of confirmed cases')
-
-    ax.set_xlabel('$t$')
-    ax.set_ylabel('{} $N$'.format(l))
+    Parameters
+    ----------
+    epidemics_start_date : datetime.datetime
+        First day of the epidemics.
+    confirmed_cases : numpy.ndarray
+        Time series of the total number of infected individuals.
+    recovered_cases : numpy.ndarray
+        Time series of the total number of recovered individuals.
+    death_cases : numpy.ndarray
+        Time series of the total number of death cases.
     
-    return fig, ax
-
-# short test
-if __name__ == "__main__":
-    latexconfig()   
-    x = np.linspace(0, 10, 10)
-    data = np.sin(2*x + 1/2)
-    plotData(x, data)
-    plt.legend()
+    """
+    removed_cases = recovered_cases + death_cases
+    active_cases = confirmed_cases - removed_cases
+    epidemics_end_date = epidemics_start_date + dt.timedelta(confirmed_cases.size)
+    days = mdates.drange(epidemics_start_date, epidemics_end_date, dt.timedelta(days=1))
+    fig = plt.figure(figsize=figsize(2, 3))
+    axs = fig.subplots(nrows=3, ncols=1, sharex=True, squeeze=True)
+    axs[0].plot(days, confirmed_cases, 'bo-', label='Total confirmed cases')
+    axs[0].plot(days, recovered_cases, 'ro-', label='Total recovered cases')
+    axs[0].legend()
+    axs[0].grid()
+    axs[0].set_ylabel('$N$')
+    
+    axs[1].plot(days, death_cases, 'bo-', label='Death cases')
+    axs[1].legend()
+    axs[1].grid()
+    axs[1].set_ylabel('$N$')
+    
+    axs[2].plot(days, active_cases, 'bo-', label='Current active cases')
+    axs[2].legend()
+    axs[2].grid()
+    axs[2].set_ylabel('$N$')
+   
+    _ = fig.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+    _ = fig.gca().xaxis.set_major_locator(mdates.DayLocator(interval=10))
+    _ = plt.gcf().autofmt_xdate()
+    
     plt.show()
