@@ -5,6 +5,9 @@ from scipy.optimize import minimize
 from covid_19.utils import mse
 
 
+__all__ = ['SEIRModel']
+
+
 def _SEIR(t, y, beta, delta, alpha, gamma):
     """Return the SEIR compartmental system values. For details check: 
     https://en.wikipedia.org/wiki/Compartmental_models_in_epidemiology#The_SEIR_model

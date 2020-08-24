@@ -4,6 +4,9 @@ from scipy.optimize import curve_fit
 from covid_19.utils import normalize, restore
 
 
+__all__ = ['GrowthCOVIDModel', '_exp_func', '_logistic_func']
+
+
 def _exp_func(x, a, b, c):
     """Exponential function of a single variable, x.
     
