@@ -61,7 +61,7 @@ _dispatcher = {
 
 class GrowthCOVIDModel(object):
     """A class to fit an exponential model to given data."""  
-    def __init__(self, function, normalize=True):
+    def __init__(self, function, normalize=True, confidence_interval=False):
         """Constructor.
         
         Parameters
@@ -70,12 +70,15 @@ class GrowthCOVIDModel(object):
             Growth curve.
         normalize : bool, optional
             Should the data be normalized to [0, 1] range.
+        confidence_interval : bool, optional
+            Generate CI using +/- standard deviation of covariance error.
         """
         try:
             self.function = _dispatcher[function]
         except:
             raise ValueError('Try `exponential` or `logistic` growth models.')
         self.normalize = normalize
+        self.ci = confidence_interval
         
     def fit(self, confirmed_cases):
         """Fit the data to the growth function.
@@ -90,7 +93,8 @@ class GrowthCOVIDModel(object):
         x : numpy.ndarray
             The independent variable where the data is measured.
         fitted : numpy.ndarray
-            Fitted growth function.
+            Fitted growth function with lower and upper bound if confidence_interval
+            is set to True.
         """
         self.confirmed_cases = confirmed_cases
 
@@ -102,8 +106,20 @@ class GrowthCOVIDModel(object):
         x = np.arange(confirmed_cases.size)
         self.popt, self.pcov = curve_fit(self.function, x, y)
         fitted = self.function(x, *self.popt) 
+        if self.ci:
+            self.perr = np.sqrt(np.diag(self.pcov))
+            lower_bound = self.function(x, *(self.popt - self.perr))
+            upper_bound = self.function(x, *(self.popt + self.perr))
         if self.normalize: 
             fitted = restore(fitted, confirmed_cases)
+            if self.ci:
+                lower_bound = restore(lower_bound, confirmed_cases)
+                upper_bound = restore(upper_bound, confirmed_cases)
+                fitted = np.r_[
+                    lower_bound.reshape(1, -1), 
+                    fitted.reshape(1, -1), 
+                    upper_bound.reshape(1, -1),
+                    ]
         return x, fitted
 
     def predict(self, n_days):
@@ -119,12 +135,24 @@ class GrowthCOVIDModel(object):
         x_future : numpy.ndarray
             The independent variable where the data is predicted.
         predicted : numpy.ndarray
-            Extrapolated data.
+            Extrapolated data with lower and upper bound if confidence_interval
+            is set to True.
         """
         assert isinstance(n_days, (int,)), 'Number of days must be integer.'
         size = self.confirmed_cases.size
         x_future = np.arange(size-1, size+n_days)
         predicted = self.function(x_future, *self.popt)
+        if self.ci:
+            lower_bound = self.function(x_future, *(self.popt - self.perr))
+            upper_bound = self.function(x_future, *(self.popt + self.perr))
         if self.normalize: 
             predicted = restore(predicted, self.confirmed_cases)
+            if self.ci:
+                lower_bound = restore(lower_bound, self.confirmed_cases)
+                upper_bound = restore(upper_bound, self.confirmed_cases)
+                predicted = np.r_[
+                    lower_bound.reshape(1, -1), 
+                    predicted.reshape(1, -1), 
+                    upper_bound.reshape(1, -1),
+                    ]
         return x_future, predicted
