@@ -96,7 +96,6 @@ class SEIRModel(object):
         -------
         tuple
             Fitted epidemiological parameters: beta, delta, alpha and gamma rate.
-        
         list
             Loss values during the optimization procedure.
         """
