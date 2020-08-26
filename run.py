@@ -10,7 +10,7 @@ from covid_19.growth_models import GrowthCOVIDModel
 from covid_19.compartmental_models import SEIRModel
 
 
-def initial_growth_fit(function, eff_date, confirmed_cases, n_days):
+def initial_growth_fit(function, eff_date, confirmed_cases, n_days, plot_confidence_intervals=False):
     """
     Fit the data to exponential function and plot n_days forecast.
         
@@ -24,22 +24,40 @@ def initial_growth_fit(function, eff_date, confirmed_cases, n_days):
         Number of confirmed infected COVID-19 cases per day since eff_date.
     n_days : int
         Number of days to extrapolate.
+    plot_confidence_intervals : bool, optional
+        Plot confidence intervals.
     """
-    date_list = [eff_date + dt.timedelta(days=i) for i in range(confirmed_cases.size)]
     offset = np.min(confirmed_cases)
     confirmed_cases_adjusted = confirmed_cases - offset
-    exp_model = GrowthCOVIDModel(function='exponential', normalize=True)
-    _, fitted_curve = exp_model.fit(confirmed_cases_adjusted)
-    _, predicted_curve = exp_model.predict(n_days)
-    date_list_future = [date_list[-1] + dt.timedelta(days=i) for i in range(predicted_curve.size)]
-    
-    plt.figure(figsize=figsize(1.5, 1))
-    plt.plot(date_list, confirmed_cases_adjusted + offset, color='blue', linestyle='-', marker='o', label='Confirmed cases')
-    plt.plot(date_list, fitted_curve + offset, color='red', linestyle='-', marker='None', label='Exponential fit')
-    plt.plot(date_list_future, predicted_curve + offset, color='red', linestyle='--', marker='o',  label='Extrapolated curve')
-    props = dict(boxstyle='round', facecolor='lavender', alpha=0.7)
-    for vals in zip(date_list_future[1:], predicted_curve[1:] + offset):
-        plt.text(vals[0], vals[1] - 175, str(int(vals[1])), verticalalignment='top', bbox=props)
+    exp_model = GrowthCOVIDModel(function=function, normalize=True, confidence_interval=plot_confidence_intervals)
+    x, fitted_curve = exp_model.fit(confirmed_cases_adjusted)
+    date_list = [eff_date + dt.timedelta(days=i) for i in range(x.size)]
+    x_future, predicted_curve = exp_model.predict(n_days)
+    date_list_future = [date_list[-1] + dt.timedelta(days=i) for i in range(x_future.size)]
+    props = dict(boxstyle='round', facecolor='lavender', alpha=1.0)
+      
+    plt.figure(figsize=(12, 8))
+    plt.plot(date_list, confirmed_cases_adjusted + offset, color='blue', linestyle='-', marker='o', markersize=9, label='confirmed cases')
+    if plot_confidence_intervals:
+        plt.plot(date_list, fitted_curve[0, :] + offset, color='red', linestyle='--', marker='None', label=f'lower/upper bound')
+        plt.plot(date_list, fitted_curve[1, :] + offset, color='red', linestyle='-', marker='None', label=f'{function} fit')
+        plt.plot(date_list, fitted_curve[2, :] + offset, color='red', linestyle='--', marker='None')
+        plt.fill_between(date_list, fitted_curve[0, :] + offset, fitted_curve[2, :] + offset, color='red', alpha=0.1)
+        
+        plt.plot(date_list_future, predicted_curve[0, :] + offset, color='red', linestyle='--', marker='None')
+        plt.plot(date_list_future, predicted_curve[1, :] + offset, color='red', linestyle='-', marker='o',  label='extrapolated curve')
+        plt.plot(date_list_future, predicted_curve[2, :] + offset, color='red', linestyle='--', marker='None')
+        plt.fill_between(date_list_future, predicted_curve[0, :] + offset, predicted_curve[2, :] + offset, color='red', alpha=0.1)
+        
+        for idx, vals in enumerate(zip(date_list_future[1:], predicted_curve[1, 1:] + offset)):
+            plt.text(vals[0], vals[1] - 175, str(int(vals[1])), verticalalignment='top', bbox=props)
+    else:
+        plt.plot(date_list, fitted_curve + offset, color='red', linestyle='-', marker='None', label=f'{function} fit')
+        
+        plt.plot(date_list_future, predicted_curve + offset, color='red', linestyle='--', marker='o',  label='extrapolated curve')
+        
+        for idx, vals in enumerate(zip(date_list_future[1:], predicted_curve[1:] + offset)):
+            plt.text(vals[0], vals[1] - 175, str(int(vals[1])), verticalalignment='top', bbox=props)
     plt.legend()
     plt.grid()
     plt.gcf().autofmt_xdate()
@@ -204,14 +222,17 @@ def main():
 
     # full data visualization
     plot_data(
-        start_date_1, 
-        confirmed_cases, 
-        recovered_cases, 
-        death_cases,
+        epidemics_start_date=start_date_1,
+        confirmed_cases=confirmed_cases,
+        recovered_cases=recovered_cases,
+        death_cases=death_cases,
     )
 
     # full data wave averaged_new_cases_v_total_cases
-    averaged_new_cases_v_total_cases(confirmed_cases, 7)
+    averaged_new_cases_v_total_cases(
+        confirmed_cases=confirmed_cases,
+        avg_period=7,
+    )
 
     # 1st wave SEIR simulation
     S0 = 2300
@@ -219,8 +240,8 @@ def main():
     I0 = active_cases_1[0]
     R0 = removed_cases_1[0]
     R_eff, loss = seir_simulation(
-        active_cases=active_cases_1, 
-        removed_cases=removed_cases_1, 
+        active_cases=active_cases_1,
+        removed_cases=removed_cases_1,
         initial_conditions=(S0, E0, I0, R0),
         split_ratio=1.,
         epidemics_start_date=start_date_1,
@@ -235,7 +256,13 @@ def main():
     eff_date = dt.datetime(2020, 8, 1)
     diff = abs((eff_date - start_date_1).days)
     n_days = 7
-    initial_growth_fit('exponential', eff_date, confirmed_cases[diff+1:], n_days)
+    initial_growth_fit(
+        function='exponential', 
+        eff_date=eff_date, 
+        confirmed_cases=confirmed_cases[diff+1:], 
+        n_days=n_days, 
+        plot_confidence_intervals=True,
+    )
 
 
 if __name__ == "__main__":
