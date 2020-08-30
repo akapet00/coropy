@@ -157,5 +157,5 @@ def train_test_split(data, split_ratio=0.8):
     """
     if split_ratio < 0. or split_ratio > 1.:
         raise ValueError('split_ratio ill-defined.')
-    train_size = int(split_ratio * len(data))
+    train_size = int(round(split_ratio * len(data)))
     return data[:train_size], data[train_size:]
