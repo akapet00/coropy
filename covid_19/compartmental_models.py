@@ -74,7 +74,7 @@ def _SEIRD(t, y, beta, delta, alpha, gamma, mu):
         beta*S*I/N - alpha*E + delta*S*E, 
         alpha*E - gamma*I - mu*I, 
         gamma*I,
-        mu*I
+        mu*I,
     ]
     
 
@@ -84,7 +84,14 @@ class SEIRModel(object):
         """Constructor."""
         pass
 
-    def fit(self, active_cases, removed_cases, initial_conditions):
+    def fit(
+        self, 
+        active_cases, 
+        removed_cases,
+        initial_conditions,
+        initial_guess=[0.001, 0.001, 0.001, 0.001],
+        loss_fn='mse'
+    ):
         """Fit SEIR model.
         
         Parameters
@@ -95,6 +102,10 @@ class SEIRModel(object):
             Time series of recovered+deceased individuals.
         initial_conditions: list
             Values of S, E, I and R at the first day.
+        initial_guess : list, optional
+            Array of real elements by means of possible values of independent variables.
+        loss_fn : str, optional
+            Loss function is `mse` by default.
         
         Returns
         -------
@@ -113,8 +124,8 @@ class SEIRModel(object):
         self.y0 = initial_conditions
         opt = minimize(
             fun=SEIRModel._loss, 
-            x0=[0.001, 0.001, 0.001, 0.001],
-            args=(active_cases, removed_cases, self.y0),
+            x0=initial_guess,
+            args=(active_cases, removed_cases, self.y0, loss_fn),
             method='L-BFGS-B',
             bounds=[(1e-5, 1.0), (1e-5, 1.0), (1e-5, 1.0), (1e-5, 1.0),],
             options={'maxiter': 1000, 'disp': True},
@@ -199,19 +210,28 @@ class SEIRDModel(object):
         pass
 
     def fit(
-        self, active_cases, recovered_cases, death_cases, initial_conditions, loss_fn='mse'):
+        self, 
+        active_cases, 
+        recovered_cases, 
+        death_cases, 
+        initial_conditions, 
+        initial_guess=[0.5, 0.1, 0.1, 0.01, 0.01], 
+        loss_fn='mse', 
+    ):
         """Fit SEIRD model.
         
         Parameters
         ----------
-        active_cases: numpy.ndarray
+        active_cases : numpy.ndarray
             Time series of currently active infected individuals.
-        recovered_cases: numpy.ndarray
+        recovered_cases : numpy.ndarray
             Time series of recovered individuals.
-        death_cases: numpy.ndarray
+        death_cases : numpy.ndarray
             Time series of deceased individuals.
-        initial_conditions: list
+        initial_conditions : list
             Values of S, E, I, R and D at the first day.
+        initial_guess : list, optional
+            Array of real elements by means of possible values of independent variables.
         loss_fn : str, optional
             Loss function is `mse` by default.
         
@@ -232,10 +252,10 @@ class SEIRDModel(object):
         self.y0 = initial_conditions
         opt = minimize(
             fun=SEIRDModel._loss, 
-            x0=[0.1, 0.1, 0.1, 0.01, 0.01],
+            x0=initial_guess,
             args=(active_cases, recovered_cases, death_cases, self.y0, loss_fn),
             method='L-BFGS-B',
-            bounds=[(1.e-5, 10.), (1.e-5, 10.), (1.e-5, 10.), (1.e-5, 10.), (1.e-5, 10.),],
+            bounds=[(1.e-6, 10.), (1.e-6, 10.), (1.e-6, 10.), (1.e-6, 10.), (1.e-6, 10.),],
             options={'disp': True, 'maxiter': 1000},
             callback=print_loss,
         )
