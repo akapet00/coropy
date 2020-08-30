@@ -41,7 +41,7 @@ def _SEIR(t, y, beta, delta, alpha, gamma):
         gamma*I,
     ]
 
-def _SEIRD(t, y, beta, delta, alpha, gamma, mu):
+def _SEIRD(t, y, beta, alpha, gamma, mu):
     """Return the SEIRD compartmental system values. For details check: 
     https://en.wikipedia.org/wiki/Compartmental_models_in_epidemiology#The_SIRD_model
     
@@ -53,8 +53,6 @@ def _SEIRD(t, y, beta, delta, alpha, gamma, mu):
         Values of S, E, I and R.
     beta : float
         Transition (infectious) rate controls the rate of spread. 
-    delta : float
-        Direct transition rate between S and E individual. 
     alpha : float
         Incubation rate, the reciprocal value of the incubation period. 
     gamma : float
@@ -70,8 +68,8 @@ def _SEIRD(t, y, beta, delta, alpha, gamma, mu):
     S, E, I, R, D = y
     N = S + E + I + R + D
     return [
-        -beta*S*I/N - delta*S*E, 
-        beta*S*I/N - alpha*E + delta*S*E, 
+        -beta*S*I/N, 
+        beta*S*I/N - alpha*E, 
         alpha*E - gamma*I - mu*I, 
         gamma*I,
         mu*I,
@@ -215,7 +213,7 @@ class SEIRDModel(object):
         recovered_cases, 
         death_cases, 
         initial_conditions, 
-        initial_guess=[0.5, 0.1, 0.1, 0.01, 0.01], 
+        initial_guess=[0.5, 0.1, 0.01, 0.01], 
         loss_fn='mse', 
     ):
         """Fit SEIRD model.
@@ -238,7 +236,7 @@ class SEIRDModel(object):
         Returns
         -------
         tuple
-            Fitted epidemiological parameters: beta, delta, alpha, gamma and mu rate.
+            Fitted epidemiological parameters: beta, alpha, gamma and mu rate.
         list
             Loss values during the optimization procedure.
         """
@@ -255,12 +253,12 @@ class SEIRDModel(object):
             x0=initial_guess,
             args=(active_cases, recovered_cases, death_cases, self.y0, loss_fn),
             method='L-BFGS-B',
-            bounds=[(1.e-6, 10.), (1.e-6, 10.), (1.e-6, 10.), (1.e-6, 10.), (1.e-6, 10.),],
-            options={'disp': True, 'maxiter': 1000},
+            bounds=[(1.e-6, 10.), (1.e-6, 10.), (1.e-6, 10.), (1.e-6, 10.),],
+            options={'disp': True, 'maxiter': 1000, 'ftol': 1.e-21, 'gtol': 1.e-31},
             callback=print_loss,
         )
-        self.beta, self.delta, self.alpha, self.gamma, self.mu = opt.x
-        return (self.beta, self.delta, self.alpha, self.gamma, self.mu), loss
+        self.beta, self.alpha, self.gamma, self.mu = opt.x
+        return (self.beta, self.alpha, self.gamma, self.mu), loss
 
     def predict(self, n_days):
         """Forecast S, E, I and R based on the fitted epidemiological parameters.
@@ -279,7 +277,7 @@ class SEIRDModel(object):
             fun=_SEIRD, 
             t_span=(0, n_days), 
             y0=self.y0, 
-            args=(self.beta, self.delta, self.alpha, self.gamma, self.mu),
+            args=(self.beta, self.alpha, self.gamma, self.mu),
             method='RK45', 
             t_eval=np.arange(0, n_days, 1), 
             vectorized=True,
@@ -293,7 +291,7 @@ class SEIRDModel(object):
         Parameters
         ----------
         params : list
-            Values of beta, delta, alpha and gamma rates.
+            Values of beta, alpha, gamma and mu rates.
         active_cases : numpy.ndarray
             Time series of currently active infected individuals.
         recovered_cases : numpy.ndarray
