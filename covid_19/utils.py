@@ -86,6 +86,60 @@ def mse(y_true, y_pred):
     return np.mean((y_true - y_pred)**2)
 
 
+def rmse(y_true, y_pred):
+    """Return root mean square difference between two values.
+    
+    Parameters
+    ----------
+    y_true : float or numpy.ndarray
+        True value(s).
+    y_pred : float or numpy.ndarray
+        Predicted or simulated value(s).
+    
+    Returns
+    -------
+    float
+        Root mean square error value.
+    """
+    return np.sqrt(mse(y_true, y_pred))
+
+
+def msle(y_true, y_pred):
+    """Return mean square log difference between two values.
+    
+    Parameters
+    ----------
+    y_true : float or numpy.ndarray
+        True value(s).
+    y_pred : float or numpy.ndarray
+        Predicted or simulated value(s).
+    
+    Returns
+    -------
+    float
+        Mean square log error value.
+    """
+    return mse(np.log1p(y_true), np.log1p(y_pred))
+
+
+def mae(y_true, y_pred):
+    """Return mean absolute difference between two values.
+    
+    Parameters
+    ----------
+    y_true : float or numpy.ndarray
+        True value(s).
+    y_pred : float or numpy.ndarray
+        Predicted or simulated value(s).
+    
+    Returns
+    -------
+    float
+        Mean absolute error value.
+    """
+    return np.mean(np.abs(y_true - y_pred))
+
+
 def train_test_split(data, split_ratio=0.8):
     """Returns data split into two parts, train and test part.
     
