@@ -7,7 +7,7 @@ import numpy as np
 
 
 def latexconfig():
-    """Configure aper ready plots - standard LaTeX configuration."""
+    """Configure paper ready figures."""
     pgf_latex = {
         "pgf.texsystem": "pdflatex",
         "text.usetex": True,
@@ -26,16 +26,10 @@ def latexconfig():
 
 
 def figsize(scale, nplots=1):
-    """Golden ratio between the width and height: the ratio 
-    is the same as the ratio of their sum to the width of 
-    the figure. 
+    """Golden ratio between the width and height: the ratio is the same
+    as the ratio of their sum to the width of the figure. 
     
-    width + height    height
-    -------------- = --------
-         width        width
-
-    Props for the code goes to: 
-    https://github.com/maziarraissi/PINNs/blob/master/Utilities/plotting.py
+    (width+height)/width = height/width
 
     Parameters
     ----------
@@ -58,7 +52,9 @@ def figsize(scale, nplots=1):
     return fig_size
 
 
-def plot_data(epidemics_start_date, confirmed_cases, recovered_cases, death_cases):
+def plot_data(
+    epidemics_start_date, confirmed_cases, recovered_cases, death_cases
+    ):
     """Plot time series data.
     
     Parameters
@@ -75,8 +71,11 @@ def plot_data(epidemics_start_date, confirmed_cases, recovered_cases, death_case
     """
     removed_cases = recovered_cases + death_cases
     active_cases = confirmed_cases - removed_cases
-    epidemics_end_date = epidemics_start_date + dt.timedelta(confirmed_cases.size)
-    days = mdates.drange(epidemics_start_date, epidemics_end_date, dt.timedelta(days=1))
+    epidemics_end_date = epidemics_start_date \
+                         + dt.timedelta(confirmed_cases.size)
+    days = mdates.drange(
+        epidemics_start_date, epidemics_end_date, dt.timedelta(days=1)
+        )
     fig = plt.figure(figsize=figsize(2, 3))
     axs = fig.subplots(nrows=3, ncols=1, sharex=True, squeeze=True)
     axs[0].plot(days, confirmed_cases, 'bo-', label='Total confirmed cases')
@@ -84,19 +83,15 @@ def plot_data(epidemics_start_date, confirmed_cases, recovered_cases, death_case
     axs[0].legend()
     axs[0].grid()
     axs[0].set_ylabel('$N$')
-    
     axs[1].plot(days, death_cases, 'bo-', label='Death cases')
     axs[1].legend()
     axs[1].grid()
     axs[1].set_ylabel('$N$')
-    
     axs[2].plot(days, active_cases, 'bo-', label='Current active cases')
     axs[2].legend()
     axs[2].grid()
     axs[2].set_ylabel('$N$')
-   
     _ = fig.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
     _ = fig.gca().xaxis.set_major_locator(mdates.DayLocator(interval=10))
     _ = plt.gcf().autofmt_xdate()
-    
     plt.show()

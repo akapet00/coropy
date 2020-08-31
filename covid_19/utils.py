@@ -1,5 +1,6 @@
 import numpy as np  
 
+
 def normalize(data):
     """Return MinMax scaled data.
     
@@ -36,17 +37,23 @@ def restore(normalized, original):
     numpy.ndarray
         Restored data.
     """
-    if isinstance(normalized, (np.ndarray)) and isinstance(original, (np.ndarray)):
-        assert normalized.ndim == 1 and original.ndim == 1, 'both arrays must be 1-D'
+    if (isinstance(normalized, (np.ndarray)) and 
+            isinstance(original, (np.ndarray))):
+        assert normalized.ndim == 1 and original.ndim == 1, \
+            'both arrays must be 1-D'
     elif isinstance(normalized, (list)) or isinstance(original, (list)):
         normalized = np.array(normalized)
         original = np.array(original)
-        assert normalized.ndim == 1 and original.ndim == 1, 'both arrays must be 1-D'
-    return normalized * (np.max(original) - np.min(original)) + np.min(original)
+        assert normalized.ndim == 1 and original.ndim == 1, \
+            'both arrays must be 1-D'
+    return normalized \
+           * (np.max(original) - np.min(original)) \
+           + np.min(original)
 
 
 def moving_average(y, n=3):
-    """Return a array of averages of different subsets of the full data set.
+    """Return a array of averages of different subsets of the full data
+    set.
 
     Parameters
     ----------

@@ -59,7 +59,7 @@ _growth_model_dispatcher = {
     }
 
 
-_confidence_interval_dispatcher = {
+_ci_dispatcher = {
     90: 1.645, 
     95: 1.960, 
     98: 2.326, 
@@ -68,8 +68,10 @@ _confidence_interval_dispatcher = {
 
 
 class GrowthCOVIDModel(object):
-    """A class to fit an exponential model to given data."""  
-    def __init__(self, function, normalize=True, confidence_interval=False, **kwargs):
+    """A class to fit an exponential model to given data."""
+    def __init__(
+        self, function, normalize=True, confidence_interval=False, **kwargs
+        ):
         """Constructor.
         
         Parameters
@@ -79,19 +81,24 @@ class GrowthCOVIDModel(object):
         normalize : bool, optional
             Should the data be normalized to [0, 1] range.
         confidence_interval : bool, optional
-            Generate CI using fitted params of a given function +/- standard deviation.
+            Generate CI using fitted params of a given function 
+            +/- standard deviation.
         kwargs : dict, optional
-            If confidence_interval flag is set to True and both kwargs are specified, the
-            confidence intervals with be calculated using sensitivity and specificity as a valid
-            accuracy measures. If confidence_interval flag is set to True but no kwargs (or just a 
-            single keyword argument) are given the confidence_interval will be calulated assuming 
-            there are no intrinsic errors on measured data.
+            If `confidence_interval` flag is set to True and both
+            kwargs are specified, the confidence intervals with be
+            calculated using sensitivity as a valid accuracy measure.
+            If confidence_interval flag is set to True but no kwargs
+            (or just a single keyword argument) are given the
+            `confidence_interval` will be calulated assuming there are
+            no intrinsic errors on measured data.
             sensitivity : float
-                Measure of the proportion of positives that are correctly identified 
-                (e.g., the percentage of sick people who are correctly identified as being infected).
+                Measure of the proportion of positives that are
+                correctly identified (e.g., the percentage of sick
+                people who are correctly identified as being infected).
             ci_level : int
-                Confidence interval level. Supported values are 90, 95, 98 and 99 using the standard
-                normal distribution as the critical value.
+                Confidence interval level. Supported values are 90, 95,
+                98 and 99 using the standard normal distribution as the
+                critical value.
         """
         try:
             self.function = _growth_model_dispatcher[function]
@@ -102,10 +109,13 @@ class GrowthCOVIDModel(object):
         if len(kwargs) == 2: 
             for kw in kwargs.keys():
                 if kw == 'sensitivity':
-                    assert isinstance(kwargs[kw], (float,)), 'Sensitivity has to be a floating point number between 0 and 1.'
+                    assert isinstance(kwargs[kw], (float, )), \
+                        'Sensitivity has to be a floating point number.'
                     self.sensitivity = kwargs[kw]
                 elif kw == 'ci_level':
-                    assert kwargs[kw] in [90, 95, 98, 99], 'Supported confidence interval levels are 90, 95, 98 and 99.'
+                    assert kwargs[kw] in [90, 95, 98, 99], \
+                        'Supported confidence interval levels are 90, 95, 98 \
+                        and 99.'
                     self.ci_level = kwargs[kw]
                 else:
                     raise ValueError('No such argument is supported.')
@@ -125,8 +135,8 @@ class GrowthCOVIDModel(object):
         x : numpy.ndarray
             The independent variable where the data is measured.
         fitted : numpy.ndarray
-            Fitted growth function with lower and upper bound if confidence_interval
-            is set to True.
+            Fitted growth function with lower and upper bound if
+            `confidence_interval` is set to True.
         """
         self.confirmed_cases = confirmed_cases
 
@@ -141,9 +151,15 @@ class GrowthCOVIDModel(object):
         if self.ci:
             if self.sensitivity and self.ci_level:
                 std_sensitivity_err = np.sqrt(
-                    np.divide(((1 - self.sensitivity) * self.sensitivity), y, out=np.zeros_like(y), where=y!=0)
+                    np.divide(
+                        (1 - self.sensitivity) * self.sensitivity, 
+                        y, 
+                        out=np.zeros_like(y), 
+                        where=y!=0,
+                        )
                 )
-                sensitivity_ci = _confidence_interval_dispatcher[self.ci_level] * std_sensitivity_err
+                sensitivity_ci = _ci_dispatcher[self.ci_level] \
+                                 * std_sensitivity_err
                 lower_bound = (self.sensitivity - sensitivity_ci) * fitted
                 upper_bound = (self.sensitivity + sensitivity_ci) * fitted
             else:
@@ -175,8 +191,8 @@ class GrowthCOVIDModel(object):
         x_future : numpy.ndarray
             The independent variable where the data is predicted.
         predicted : numpy.ndarray
-            Extrapolated data with lower and upper bound if confidence_interval
-            is set to True.
+            Extrapolated data with lower and upper bound if 
+            `confidence_interval` is set to True.
         """
         assert isinstance(n_days, (int,)), 'Number of days must be integer.'
         size = self.confirmed_cases.size
@@ -187,12 +203,17 @@ class GrowthCOVIDModel(object):
                 std_sensitivity_err = np.sqrt(
                     ((1 - self.sensitivity) * self.sensitivity) / predicted
                 )
-                sensitivity_ci = _confidence_interval_dispatcher[self.ci_level] * std_sensitivity_err
+                sensitivity_ci = _ci_dispatcher[self.ci_level] \
+                                 * std_sensitivity_err
                 lower_bound = (self.sensitivity - sensitivity_ci) * predicted
                 upper_bound = (self.sensitivity + sensitivity_ci) * predicted
             else:
-                lower_bound = self.function(x_future, *(self.popt - self.perr))
-                upper_bound = self.function(x_future, *(self.popt + self.perr))
+                lower_bound = self.function(
+                    x_future, *(self.popt - self.perr)
+                    )
+                upper_bound = self.function(
+                    x_future, *(self.popt + self.perr)
+                    )
         if self.normalize: 
             predicted = restore(predicted, self.confirmed_cases)
             if self.ci:
