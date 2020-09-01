@@ -79,7 +79,14 @@ def _SEIRD(t, y, beta, alpha, gamma, mu):
 class CompartmentalModel(object):
     """General compartmental model class."""
 
-    def __init__(self, loss_fn='mse', sensitivity=None):
+    def __init__(
+        self, 
+        loss_fn='mse',
+        sensitivity=None,
+        specificity=None,
+        new_positives=None,
+        total_tests=None,
+        ):
         """Constructor.
         
         Parameters
@@ -89,9 +96,18 @@ class CompartmentalModel(object):
         sensitivity : float, optional
             Measure of the proportion of positives that are correctly
             identified (e.g., the percentage of sick people who are
-            correctly identified as being infected). If the
-            `sensitivity` is defined, the .95 confidence intervals will
-            be caluclated.  
+            correctly identified as being infected). Only if all the
+            optional variables (`sensitivity`, `specifcity`,
+            `new_positives` and `total_tests`) are defined, the .95
+            confidence intervals is going to be caluclated.  
+        specificity : float, optional
+            Measure of the proportion of negatives that are correctly
+            identified (e.g., the percentage of healthy people who are
+            correctly identified as not infected).
+        new_positives : numpy.ndarray, optional
+            Time series of new daily infected individuals.
+        total_tests : numpy.ndarray, optional
+            Time series of new daily completed tests.
         """
         if loss_fn == 'mse':
             self.loss_fn = mse
@@ -103,15 +119,24 @@ class CompartmentalModel(object):
             self.loss_fn = mae
         else:
             raise ValueError('Given loss function is not supported.')
-        if sensitivity:
+        if (sensitivity and specificity and 
+                new_positives is not None and total_tests is not None):
             assert isinstance(sensitivity, (float, )), \
-                'Sensitivity must be a floating point number in [0, 1]'
+                'Sensitivity must be a floating point number in <0.5, 1]'
+            assert isinstance(specificity, (float, )), \
+                'Specificity must be a floating point number in <0.5, 1]'
             self.sensitivity = sensitivity
+            self.specificity = specificity
+            self.new_positives = new_positives
+            self.total_tests = total_tests
         else:
             self.sensitivity = None
+            self.specificity = None
+            self.new_positives = None
+            self.total_tests = None
     
     @staticmethod
-    def calculate_ci(sensitivity, fitted):
+    def calculate_ci(sensitivity, specificity, new_positives, total_tests):
         """Return 2-d array with 3 rows, first row is the lower
         confidence interval bound, the second row is the fitted data
         and the last row is the upper confidence interval bound.
@@ -123,30 +148,46 @@ class CompartmentalModel(object):
             different intervals, it should be stored in the array-like
             format where the length is the same as the length of the
             data.
+        
+        specificity : float or numpy.ndarray
+            Test specificity. If the sensitivity is different in
+            different intervals, it should be stored in the array-like
+            format where the length is the same as the length of the
+            data.
 
-        fitted : numpy.ndarray
-            Fitted data.
+        new_positives : numpy.ndarray
+            Daily number of new confirmed positive infections.
+        
+        total_tests : numpy.ndarray
+            Daily number of tests.
+
+        Returns
+        -------
+        tuple
+            Tuple consisting two numpy array. The first array is the
+            lower CI bound scaler, and the second row is the upper CI
+            bound scaler.
         """
-        fitted_normalized = normalize(fitted)
         std_sensitivity_err = np.sqrt(np.divide(
             (1 - sensitivity) * sensitivity, 
-            fitted_normalized, 
-            out=np.zeros_like(fitted_normalized), 
-            where=fitted_normalized!=0,
-            )
-        )
+            new_positives, 
+            out=np.zeros_like(new_positives), 
+            where=new_positives!=0,
+        ))
         sensitivity_ci = np.abs(1.960 * std_sensitivity_err)
-        lower_bound = restore(
-            (sensitivity - sensitivity_ci) * fitted_normalized, fitted
-        )
-        upper_bound = restore(
-            (sensitivity + sensitivity_ci) * fitted_normalized, fitted
-            )
-        return np.r_[
-            lower_bound.reshape(1, -1), 
-            fitted.reshape(1, -1), 
-            upper_bound.reshape(1, -1),
-            ]
+        lower_bound_scaler = sensitivity - sensitivity_ci
+        
+        inv_specificity = 1 - specificity
+        std_inv_specificity_err = np.sqrt(np.divide(
+            (1 - inv_specificity) * inv_specificity,
+            total_tests - new_positives,
+            out=np.zeros_like(total_tests - new_positives), 
+            where=(total_tests - new_positives)!=0,
+        ))
+        inv_specificity_ci = np.abs(1.960 * std_inv_specificity_err)
+        upper_bound_scaler = 2 - inv_specificity + inv_specificity_ci
+
+        return (lower_bound_scaler, upper_bound_scaler)
             
 
 class SEIRModel(CompartmentalModel):
@@ -209,14 +250,9 @@ class SEIRModel(CompartmentalModel):
         self.beta, self.delta, self.alpha, self.gamma = opt.x
         return (self.beta, self.delta, self.alpha, self.gamma), loss
 
-    def predict(self, n_days):
-        """Forecast S, E, I and R based on the fitted epidemiological
+    def simulate(self):
+        """Simulate S, E, I and R based on the fitted epidemiological
         parameters.
-        
-        Parameters
-        ----------
-        n_days : int
-            Number of days for which the simulation will be performed.
             
         Returns
         -------
@@ -225,16 +261,31 @@ class SEIRModel(CompartmentalModel):
         """
         sol = solve_ivp(
             fun=_SEIR, 
-            t_span=(0, n_days), 
+            t_span=(0, self.active_cases.size), 
             y0=self.y0, 
             args=(self.beta, self.delta, self.alpha, self.gamma),
             method='RK45', 
-            t_eval=np.arange(0, n_days, 1), 
+            t_eval=np.arange(0, self.active_cases.size, 1), 
             vectorized=True,
         )
-        if self.sensitivity:
-            I_ci = self.calculate_ci(self.sensitivity, sol.y[2])
-            R_ci = self.calculate_ci(self.sensitivity, sol.y[3])
+        if (self.sensitivity and self.specificity and 
+                self.total_tests is not None):
+            (lower_bound_scaler, upper_bound_scaler) = self.calculate_ci(
+                self.sensitivity, 
+                self.specificity,
+                self.new_positives,
+                self.total_tests,
+                )
+            I_ci = np.r_[
+                (lower_bound_scaler*sol.y[2]).reshape(1, -1),
+                sol.y[2].reshape(1, -1),
+                (upper_bound_scaler*sol.y[2]).reshape(1, -1),
+            ]
+            R_ci = np.r_[
+                (lower_bound_scaler*sol.y[3]).reshape(1, -1),
+                sol.y[3].reshape(1, -1),
+                (upper_bound_scaler*sol.y[3]).reshape(1, -1),
+            ]
             return sol.y[0], sol.y[1], I_ci, R_ci
         return (sol.y[0], sol.y[1], sol.y[2], sol.y[3])
     
@@ -352,14 +403,9 @@ class SEIRDModel(CompartmentalModel):
         self.beta, self.alpha, self.gamma, self.mu = opt.x
         return (self.beta, self.alpha, self.gamma, self.mu), loss
 
-    def predict(self, n_days):
+    def simulate(self):
         """Forecast S, E, I and R based on the fitted epidemiological
         parameters.
-        
-        Parameters
-        ----------
-        n_days : int
-            Number of days for which the simulation will be performed.
             
         Returns
         -------
@@ -368,17 +414,36 @@ class SEIRDModel(CompartmentalModel):
         """
         sol = solve_ivp(
             fun=_SEIRD, 
-            t_span=(0, n_days), 
+            t_span=(0, self.active_cases.size), 
             y0=self.y0, 
             args=(self.beta, self.alpha, self.gamma, self.mu),
             method='RK45', 
-            t_eval=np.arange(0, n_days, 1), 
+            t_eval=np.arange(0, self.active_cases.size, 1), 
             vectorized=True,
         )
-        if self.sensitivity:
-            I_ci = self.calculate_ci(self.sensitivity, sol.y[2])
-            R_ci = self.calculate_ci(self.sensitivity, sol.y[3])
-            D_ci = self.calculate_ci(self.sensitivity, sol.y[4])
+        if (self.sensitivity and self.specificity and 
+                 self.total_tests is not None):
+            (lower_bound_scaler, upper_bound_scaler) = self.calculate_ci(
+                self.sensitivity, 
+                self.specificity,
+                self.new_positives,
+                self.total_tests,
+                )
+            I_ci = np.r_[
+                (lower_bound_scaler*sol.y[2]).reshape(1, -1),
+                sol.y[2].reshape(1, -1),
+                (upper_bound_scaler*sol.y[2]).reshape(1, -1),
+            ]
+            R_ci = np.r_[
+                (lower_bound_scaler*sol.y[3]).reshape(1, -1),
+                sol.y[3].reshape(1, -1),
+                (upper_bound_scaler*sol.y[3]).reshape(1, -1),
+            ]
+            D_ci = np.r_[
+                (lower_bound_scaler*sol.y[4]).reshape(1, -1),
+                sol.y[4].reshape(1, -1),
+                (upper_bound_scaler*sol.y[4]).reshape(1, -1),
+            ]
             return sol.y[0], sol.y[1], I_ci, R_ci, D_ci
         return (sol.y[0], sol.y[1], sol.y[2], sol.y[3], sol.y[4])
     
