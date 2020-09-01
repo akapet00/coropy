@@ -33,15 +33,18 @@ $ conda env create -f conda_env.yml
 
 ## Running a simulation
 
-Assuming you created the Anacoonda environment, for the most simple simulation, just run:
-
-```bash
-(covid_19)$ python run.py
-```
+See [Examples](#Examples) section.
 
 ## Examples
 
 Go to the [sandbox](https://github.com/antelk/covid-19/tree/master/sandbox) directory and fire up jupyter notebook.
+There are currently 6 notebooks, all exploring the COVID-19 situation in Croatia. To view it online click on following links:
+* [Data visualization and trends](https://github.com/antelk/covid-19/blob/master/sandbox/00-Data-Visualization-and-Trends.ipynb)
+* [Exploring mortality](https://github.com/antelk/covid-19/blob/master/sandbox/01-Exploring-Mortality.ipynb)
+* [Outbreak exponential fitting](https://github.com/antelk/covid-19/blob/master/sandbox/02-Second-Wave-Curve-Fitting.ipynb)
+* [Modified SEIR simulation](https://github.com/antelk/covid-19/blob/master/sandbox/03-Modified-SEIR-Simulation.ipynb)
+* [SEIRD simulation with confidence intervals based on RT-PCR test sensitivity](https://github.com/antelk/covid-19/blob/master/sandbox/04-SEIRD-Simulation.ipynb)
+* [Multiple outbreaks simulation](https://github.com/antelk/covid-19/blob/master/sandbox/05-Multiple-Waves-Simulation.ipynb)
 
 ## License
 
