@@ -150,18 +150,20 @@ class GrowthCOVIDModel(object):
         fitted = self.function(x, *self.popt) 
         if self.ci:
             if self.sensitivity and self.ci_level:
-                std_sensitivity_err = np.sqrt(
-                    np.divide(
-                        (1 - self.sensitivity) * self.sensitivity, 
-                        y, 
-                        out=np.zeros_like(y), 
-                        where=y!=0,
-                        )
-                )
-                sensitivity_ci = _ci_dispatcher[self.ci_level] \
-                                 * std_sensitivity_err
-                lower_bound = (self.sensitivity - sensitivity_ci) * fitted
-                upper_bound = (self.sensitivity + sensitivity_ci) * fitted
+                raise NotImplementedError('TO-DO: implement sensitivity and \
+specificity based CI.')
+                # std_sensitivity_err = np.sqrt(
+                #     np.divide(
+                #         (1 - self.sensitivity) * self.sensitivity, 
+                #         y, 
+                #         out=np.zeros_like(y), 
+                #         where=y!=0,
+                #         )
+                # )
+                # sensitivity_ci = _ci_dispatcher[self.ci_level] \
+                #                  * std_sensitivity_err
+                # lower_bound = (self.sensitivity - sensitivity_ci) * fitted
+                # upper_bound = (self.sensitivity + sensitivity_ci) * fitted
             else:
                 self.perr = np.sqrt(np.diag(self.pcov))
                 lower_bound = self.function(x, *(self.popt - self.perr))
@@ -201,18 +203,20 @@ class GrowthCOVIDModel(object):
         predicted = self.function(x_future, *self.popt)
         if self.ci:
             if self.sensitivity and self.ci_level:
-                std_sensitivity_err = np.sqrt(
-                    np.divide(
-                        (1 - self.sensitivity) * self.sensitivity, 
-                        predicted, 
-                        out=np.zeros_like(predicted), 
-                        where=predicted!=0,
-                        )
-                )
-                sensitivity_ci = _ci_dispatcher[self.ci_level] \
-                                 * std_sensitivity_err
-                lower_bound = (self.sensitivity - sensitivity_ci) * predicted
-                upper_bound = (self.sensitivity + sensitivity_ci) * predicted
+                raise NotImplementedError('TO-DO: implement sensitivity and \
+specificity based CI.')
+                # std_sensitivity_err = np.sqrt(
+                #     np.divide(
+                #         (1 - self.sensitivity) * self.sensitivity, 
+                #         predicted, 
+                #         out=np.zeros_like(predicted), 
+                #         where=predicted!=0,
+                #         )
+                # )
+                # sensitivity_ci = _ci_dispatcher[self.ci_level] \
+                #                  * std_sensitivity_err
+                # lower_bound = (self.sensitivity - sensitivity_ci) * predicted
+                # upper_bound = (self.sensitivity + sensitivity_ci) * predicted
             else:
                 lower_bound = self.function(
                     x_future, *(self.popt - self.perr)
