@@ -171,11 +171,12 @@ class GrowthCOVIDModel(object):
             if self.ci:
                 lower_bound = restore(lower_bound, confirmed_cases)
                 upper_bound = restore(upper_bound, confirmed_cases)
-                fitted = np.r_[
-                    lower_bound.reshape(1, -1), 
-                    fitted.reshape(1, -1), 
-                    upper_bound.reshape(1, -1),
-                    ]
+        if self.ci:
+            fitted = np.r_[
+                lower_bound.reshape(1, -1), 
+                fitted.reshape(1, -1), 
+                upper_bound.reshape(1, -1),
+                ]
         return x, fitted
 
     def predict(self, n_days):
@@ -201,7 +202,12 @@ class GrowthCOVIDModel(object):
         if self.ci:
             if self.sensitivity and self.ci_level:
                 std_sensitivity_err = np.sqrt(
-                    ((1 - self.sensitivity) * self.sensitivity) / predicted
+                    np.divide(
+                        (1 - self.sensitivity) * self.sensitivity, 
+                        predicted, 
+                        out=np.zeros_like(predicted), 
+                        where=predicted!=0,
+                        )
                 )
                 sensitivity_ci = _ci_dispatcher[self.ci_level] \
                                  * std_sensitivity_err
@@ -219,9 +225,10 @@ class GrowthCOVIDModel(object):
             if self.ci:
                 lower_bound = restore(lower_bound, self.confirmed_cases)
                 upper_bound = restore(upper_bound, self.confirmed_cases)
-                predicted = np.r_[
-                    lower_bound.reshape(1, -1), 
-                    predicted.reshape(1, -1), 
-                    upper_bound.reshape(1, -1),
-                    ]
+        if self.ci:
+            predicted = np.r_[
+                lower_bound.reshape(1, -1), 
+                predicted.reshape(1, -1), 
+                upper_bound.reshape(1, -1),
+                ]
         return x_future, predicted
