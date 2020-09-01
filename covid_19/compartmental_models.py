@@ -232,6 +232,10 @@ class SEIRModel(CompartmentalModel):
             t_eval=np.arange(0, n_days, 1), 
             vectorized=True,
         )
+        if self.sensitivity:
+            I_ci = self.calculate_ci(self.sensitivity, sol.y[2])
+            R_ci = self.calculate_ci(self.sensitivity, sol.y[3])
+            return sol.y[0], sol.y[1], I_ci, R_ci
         return (sol.y[0], sol.y[1], sol.y[2], sol.y[3])
     
     @staticmethod
