@@ -3,6 +3,7 @@ from scipy.integrate import solve_ivp
 from scipy.optimize import minimize
 
 from covid_19.utils import (mse, rmse, msle, mae)
+from covid_19.utils import normalize, restore
 
 
 __all__ = ['SEIRModel', 'SEIRDModel']
@@ -106,9 +107,11 @@ class CompartmentalModel(object):
             assert isinstance(sensitivity, (float, )), \
                 'Sensitivity must be a floating point number in [0, 1]'
             self.sensitivity = sensitivity
+        else:
+            self.sensitivity = None
     
     @staticmethod
-    def calculate_ci(sensitivity, data, fitted):
+    def calculate_ci(sensitivity, fitted):
         """Return 2-d array with 3 rows, first row is the lower
         confidence interval bound, the second row is the fitted data
         and the last row is the upper confidence interval bound.
@@ -121,22 +124,24 @@ class CompartmentalModel(object):
             format where the length is the same as the length of the
             data.
 
-        data : numpy.ndarray
-            Original data on which the fitting was performed. 
         fitted : numpy.ndarray
             Fitted data.
         """
-        std_sensitivity_err = np.sqrt(
-            np.divide(
-                (1 - sensitivity) * sensitivity, 
-                data, 
-                out=np.zeros_like(data), 
-                where=data!=0,
-                )
+        fitted_normalized = normalize(fitted)
+        std_sensitivity_err = np.sqrt(np.divide(
+            (1 - sensitivity) * sensitivity, 
+            fitted_normalized, 
+            out=np.zeros_like(fitted_normalized), 
+            where=fitted_normalized!=0,
             )
-        sensitivity_ci = 1.960 * std_sensitivity_err
-        lower_bound = (sensitivity - sensitivity_ci) * fitted
-        upper_bound = (sensitivity + sensitivity_ci) * fitted
+        )
+        sensitivity_ci = np.abs(1.960 * std_sensitivity_err)
+        lower_bound = restore(
+            (sensitivity - sensitivity_ci) * fitted_normalized, fitted
+        )
+        upper_bound = restore(
+            (sensitivity + sensitivity_ci) * fitted_normalized, fitted
+            )
         return np.r_[
             lower_bound.reshape(1, -1), 
             fitted.reshape(1, -1), 
@@ -146,10 +151,6 @@ class CompartmentalModel(object):
 
 class SEIRModel(CompartmentalModel):
     """SEIR model class."""
-
-    def __init__(self):
-        """Constructor."""
-        super().__init__()
 
     def fit(
         self, 
@@ -180,14 +181,16 @@ class SEIRModel(CompartmentalModel):
         list
             Loss values during the optimization procedure.
         """
+        self.active_cases = active_cases
+        self.removed_cases = removed_cases
         loss = []
         def print_loss(p):
             """Optimizer callback."""
             loss.append(
                 SEIRModel._loss(
                     p, 
-                    active_cases, 
-                    removed_cases, 
+                    self.active_cases, 
+                    self.removed_cases, 
                     initial_conditions, 
                     self.loss_fn,
                     )
@@ -197,7 +200,7 @@ class SEIRModel(CompartmentalModel):
         opt = minimize(
             fun=SEIRModel._loss, 
             x0=initial_guess,
-            args=(active_cases, removed_cases, self.y0, self.loss_fn),
+            args=(self.active_cases, self.removed_cases, self.y0, self.loss_fn),
             method='L-BFGS-B',
             bounds=[(1e-5, 1.0), (1e-5, 1.0), (1e-5, 1.0), (1e-5, 1.0),],
             options={'maxiter': 1000, 'disp': True},
@@ -229,9 +232,6 @@ class SEIRModel(CompartmentalModel):
             t_eval=np.arange(0, n_days, 1), 
             vectorized=True,
         )
-        # TO-DO: implement sensitivity analysis
-        if self.sensitivity:
-            pass
         return (sol.y[0], sol.y[1], sol.y[2], sol.y[3])
     
     @staticmethod
@@ -277,10 +277,6 @@ class SEIRModel(CompartmentalModel):
 class SEIRDModel(CompartmentalModel):
     """SEIRD model class."""
 
-    def __init__(self):
-        """Constructor."""
-        super().__init__()
-
     def fit(
         self, 
         active_cases, 
@@ -313,15 +309,19 @@ class SEIRDModel(CompartmentalModel):
         list
             Loss values during the optimization procedure.
         """
+        self.active_cases = active_cases
+        self.recovered_cases = recovered_cases
+        self.death_cases = death_cases
+
         loss = []
         def print_loss(p):
             """Optimizer callback."""
             loss.append(
                 SEIRDModel._loss(
                     p,
-                    active_cases,
-                    recovered_cases,
-                    death_cases,
+                    self.active_cases,
+                    self.recovered_cases,
+                    self.death_cases,
                     initial_conditions,
                     self.loss_fn
                     )
@@ -332,7 +332,11 @@ class SEIRDModel(CompartmentalModel):
             fun=SEIRDModel._loss, 
             x0=initial_guess,
             args=(
-                active_cases, recovered_cases, death_cases, self.y0, self.loss_fn
+                self.active_cases,
+                self.recovered_cases,
+                self.death_cases,
+                self.y0,
+                self.loss_fn,
                 ),
             method='L-BFGS-B',
             bounds=[(1.e-6, 10.), (1.e-6, 10.), (1.e-6, 10.), (1.e-6, 10.),],
@@ -367,9 +371,11 @@ class SEIRDModel(CompartmentalModel):
             t_eval=np.arange(0, n_days, 1), 
             vectorized=True,
         )
-        # TO-DO: implement sensitivity analysis
         if self.sensitivity:
-            pass
+            I_ci = self.calculate_ci(self.sensitivity, sol.y[2])
+            R_ci = self.calculate_ci(self.sensitivity, sol.y[3])
+            D_ci = self.calculate_ci(self.sensitivity, sol.y[4])
+            return sol.y[0], sol.y[1], I_ci, R_ci, D_ci
         return (sol.y[0], sol.y[1], sol.y[2], sol.y[3], sol.y[4])
     
     @staticmethod
