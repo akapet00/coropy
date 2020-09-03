@@ -158,7 +158,8 @@ class GrowthCOVIDModel(object):
         Parameters
         ----------
         confirmed_cases : numpy.ndarray
-            Number of confirmed infected COVID-19 cases per day.
+            Cumulative number of confirmed infected COVID-19 cases per 
+            day.
         
         Returns
         -------
@@ -174,10 +175,10 @@ class GrowthCOVIDModel(object):
             y = normalize(confirmed_cases)
         else: 
             y = confirmed_cases
-    
         x = np.arange(confirmed_cases.size)
         self.popt, self.pcov = curve_fit(self.function, x, y)
-        fitted = self.function(x, *self.popt) 
+        fitted = self.function(x, *self.popt)
+
         if self.ci and not self.sensitivity:
             self.perr = np.sqrt(np.diag(self.pcov))
             lower_bound = self.function(x, *(self.popt - self.perr))
@@ -189,19 +190,34 @@ class GrowthCOVIDModel(object):
             fitted = np.r_[
                 lower_bound.reshape(1, -1), 
                 fitted.reshape(1, -1), 
-                upper_bound.reshape(1, -1),
-            ]
+                upper_bound.reshape(1, -1)]
+
         elif (self.ci and self.sensitivity and self.specificity and 
                 self.ci_level and self.daily_tests is not None):
-            positives = np.diff(
-                np.concatenate((np.array([0]), self.confirmed_cases)))
-            fitted = self.calculate_ci(
+            if self.normalize:
+                fitted = restore(fitted, self.confirmed_cases)
+            lower_bound, upper_bound = self.calculate_ci(
                 self.sensitivity, 
                 self.specificity, 
-                positives, 
+                fitted, 
                 self.daily_tests, 
-                self.ci_level
-            )
+                self.ci_level)
+            fitted = np.r_[
+                lower_bound.reshape(1, -1), 
+                fitted.reshape(1, -1), 
+                upper_bound.reshape(1, -1)]
+            # In order to figure out extrapolated bounds, functional
+            # parameters of bounds have to be determined.
+            # Following variables will be used if `predicted` method is
+            # called.
+            self.lb_reference = lower_bound
+            self.ub_reference = upper_bound
+            if self.normalize: 
+                lower_bound = normalize(lower_bound)
+                upper_bound = normalize(upper_bound)
+            self.lb_popt, _ = curve_fit(self.function, x, lower_bound)
+            self.ub_popt, _ = curve_fit(self.function, x, upper_bound)
+
         elif not self.ci and self.normalize:
             fitted = restore(fitted, self.confirmed_cases)
         return x, fitted
@@ -226,8 +242,8 @@ class GrowthCOVIDModel(object):
         size = self.confirmed_cases.size
         x_future = np.arange(size-1, size+n_days)
         predicted = self.function(x_future, *self.popt)
+
         if self.ci and not self.sensitivity:
-            self.perr = np.sqrt(np.diag(self.pcov))
             lower_bound = self.function(x_future, *(self.popt - self.perr))
             upper_bound = self.function(x_future, *(self.popt + self.perr))
             if self.normalize: 
@@ -237,28 +253,31 @@ class GrowthCOVIDModel(object):
             predicted = np.r_[
                 lower_bound.reshape(1, -1), 
                 predicted.reshape(1, -1), 
-                upper_bound.reshape(1, -1),
-            ]
+                upper_bound.reshape(1, -1)]
+
         elif (self.ci and self.sensitivity and self.specificity and 
                 self.ci_level and self.daily_tests is not None):
-            positives = np.diff(
-                np.concatenate((np.array([0]), predicted)))
-            predicted = self.calculate_ci(
-                self.sensitivity, 
-                self.specificity, 
-                positives, 
-                self.daily_tests, 
-                self.ci_level
-            )
+            lower_bound = self.function(x_future, *self.lb_popt)
+            upper_bound = self.function(x_future, *self.ub_popt)
+            if self.normalize:
+                predicted = restore(predicted, self.confirmed_cases)
+                lower_bound = restore(lower_bound, self.lb_reference)
+                upper_bound = restore(upper_bound, self.ub_reference)
+            predicted = np.r_[
+                lower_bound.reshape(1, -1),
+                predicted.reshape(1, -1),
+                upper_bound.reshape(1, -1)]
+
         elif not self.ci and self.normalize:
             predicted = restore(predicted, self.confirmed_cases)
+
         return x_future, predicted
 
     @staticmethod
     def calculate_ci(
         sensitivity, 
         specificity, 
-        positives,
+        fitted_curve,
         daily_tests,
         ci_level,
         ):
@@ -277,8 +296,9 @@ class GrowthCOVIDModel(object):
             different intervals, it should be stored in the array-like
             format where the length is the same as the length of the
             data.
-        positives : numpy.ndarray
-            Daily number of new confirmed positive infections.       
+        fitted_curve : numpy.ndarray
+            Fitted cumulative number of confirmed infected COVID-19 cases 
+            per day.     
         daily_tests : numpy.ndarray
             Daily number of tests.
         ci_level : int
@@ -287,12 +307,14 @@ class GrowthCOVIDModel(object):
             critical value.
         Returns
         -------
-        numpy.ndarray
-            Array of shape (3, n) where n is the duration of modeled
-            epidemics in days. The first row is the lower CI bound, the
-            second row is the fitted data and the third row is upper CI
-            bound.
+        lower_bound_cumulative_cases : numpy.ndarray
+            Array of shape (n, ) where n is the duration of modeled
+            epidemics in days with values of lower CI bound. 
+        upper_bound_cumulative_cases : numpy.ndarray
+            Array of shape (n, ) where n is the duration of modeled
+            epidemics in days with values of upper CI bound. 
         """
+        positives = np.diff(fitted_curve)
         std_sensitivity_err = np.sqrt(np.divide(
             (1 - sensitivity) * sensitivity, 
             positives, 
@@ -302,9 +324,13 @@ class GrowthCOVIDModel(object):
         sensitivity_ci = _ci_dispatcher[ci_level] * std_sensitivity_err
         lower_bound_sensitivity = np.abs(sensitivity - sensitivity_ci)
         lower_bound_true_positives = lower_bound_sensitivity * positives
-        lower_bound_cumulative_cases = np.cumsum(lower_bound_true_positives)
+        lower_bound_cumulative_cases = np.cumsum(lower_bound_true_positives) \
+                                       + fitted_curve[0]
         
-        negatives = daily_tests - positives
+        # yesterday's test gives today's result 
+        daily_tests = np.concatenate((
+            np.array([daily_tests[0]]), daily_tests[:-1]))
+        negatives = daily_tests[1:] - positives
         std_specificity_err = np.sqrt(np.divide(
             (1 - specificity) * specificity,
             negatives,
@@ -316,10 +342,14 @@ class GrowthCOVIDModel(object):
         upper_bound_true_negatives = upper_bound_specificity * negatives
         upper_bound_false_negatives = negatives - upper_bound_true_negatives
         upper_bound_true_positives = upper_bound_false_negatives + positives
-        upper_bound_cumulative_cases = np.cumsum(upper_bound_true_positives)
+        upper_bound_cumulative_cases = np.cumsum(upper_bound_true_positives) \
+                                       + fitted_curve[0]
+        # bounds start from the same exact point because a single data
+        # point is lost after fitted cases differentiation in th first
+        # line of the method: positives = np.diff(fitted_curve)
+        lower_bound_cumulative_cases = np.concatenate((
+            np.array([fitted_curve[0]]), lower_bound_cumulative_cases))
+        upper_bound_cumulative_cases = np.concatenate((
+            np.array([fitted_curve[0]]), upper_bound_cumulative_cases))
 
-        return np.r_[
-            lower_bound_cumulative_cases.reshape(1, -1),
-            np.cumsum(positives).reshape(1, -1),
-            upper_bound_cumulative_cases.reshape(1, -1),
-        ]
+        return lower_bound_cumulative_cases, upper_bound_cumulative_cases
