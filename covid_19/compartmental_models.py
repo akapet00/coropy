@@ -179,11 +179,13 @@ class CompartmentalModel(object):
         ))
         sensitivity_ci = 1.960 * std_sensitivity_err
         lower_bound_sensitivity = np.abs(sensitivity - sensitivity_ci)
-        lower_bound_true_positives = lower_bound_sensitivity * positives ####
+        lower_bound_true_positives = lower_bound_sensitivity * positives
         cumulative_cases = np.cumsum(lower_bound_true_positives)
         lower_bound_active_infections = cumulative_cases - recoveries
         lower_bound_scaler = lower_bound_active_infections / actives
-        
+
+        # yesterday's test gives today's result 
+        total_tests = np.concatenate((np.array([total_tests[0]]), total_tests[:-1]))
         negatives = total_tests - positives
         std_specificity_err = np.sqrt(np.divide(
             (1 - specificity) * specificity,
@@ -193,7 +195,7 @@ class CompartmentalModel(object):
         ))
         specificity_ci = 1.960 * std_specificity_err
         upper_bound_specificity = np.abs(specificity + specificity_ci)
-        upper_bound_true_negatives = upper_bound_specificity * negatives ####
+        upper_bound_true_negatives = upper_bound_specificity * negatives
         upper_bound_false_negatives = negatives - upper_bound_true_negatives
         upper_bound_true_positives = upper_bound_false_negatives + positives
         cumulative_cases = np.cumsum(upper_bound_true_positives)
@@ -297,6 +299,38 @@ class SEIRModel(CompartmentalModel):
             ]
             return (sol.y[0], sol.y[1], I_ci, sol.y[3])
         return (sol.y[0], sol.y[1], sol.y[2], sol.y[3])
+
+    def forecast(self, n_days):
+        """Predict S, E, I and R based on the fitted epidemiological
+        parameters.
+        
+        Parameters
+        ----------
+        n_days : int
+            Number of days to forecast S, E, I and R in the future.
+
+        Returns
+        -------
+        tuple
+            S, E, I and R predicted values.
+        """
+        assert isinstance(n_days, (int, )), '`n_days` must be an integer.'
+        eff_idx = self.active_cases.size
+        sol = solve_ivp(
+            fun=_SEIR, 
+            t_span=(0, eff_idx + n_days),
+            y0=self.y0,
+            args=(self.beta, self.delta, self.alpha, self.gamma),
+            method='RK45',
+            t_eval=np.arange(0, eff_idx + n_days, 1), 
+            vectorized=True,
+        )
+        return (
+            sol.y[0][eff_idx:],
+            sol.y[1][eff_idx:], 
+            sol.y[2][eff_idx:],
+            sol.y[3][eff_idx:],
+        )
     
     @staticmethod
     def _loss(
@@ -413,8 +447,8 @@ class SEIRDModel(CompartmentalModel):
         return (self.beta, self.alpha, self.gamma, self.mu), loss
 
     def simulate(self):
-        """Forecast S, E, I and R based on the fitted epidemiological
-        parameters.
+        """Simulate S, E, I, R and D based on the fitted
+        epidemiological parameters.
             
         Returns
         -------
@@ -448,6 +482,39 @@ class SEIRDModel(CompartmentalModel):
             return (sol.y[0], sol.y[1], I_ci, sol.y[3], sol.y[4])
         return (sol.y[0], sol.y[1], sol.y[2], sol.y[3], sol.y[4])
     
+    def forecast(self, n_days):
+        """Predict S, E, I, R and D based on the fitted
+        epidemiological parameters.
+        
+        Parameters
+        ----------
+        n_days : int
+            Number of days to forecast S, E, I, R and D in the future.
+
+        Returns
+        -------
+        tuple
+            S, E, I, R and D predicted values.
+        """
+        assert isinstance(n_days, (int, )), '`n_days` must be an integer.'
+        eff_idx = self.active_cases.size
+        sol = solve_ivp(
+            fun=_SEIRD, 
+            t_span=(0, eff_idx + n_days),
+            y0=self.y0,
+            args=(self.beta, self.alpha, self.gamma, self.mu),
+            method='RK45',
+            t_eval=np.arange(0, eff_idx + n_days, 1), 
+            vectorized=True,
+        )
+        return (
+            sol.y[0][eff_idx:], 
+            sol.y[1][eff_idx:], 
+            sol.y[2][eff_idx:], 
+            sol.y[3][eff_idx:], 
+            sol.y[4][eff_idx:],
+        )
+
     @staticmethod
     def _loss(
         params,
