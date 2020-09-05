@@ -281,9 +281,9 @@ class GrowthCOVIDModel(object):
         daily_tests,
         ci_level,
         ):
-        """Return 2-d array with 3 rows, first row is the lower
-        confidence interval bound, the second row is the fitted data
-        and the last row is the upper confidence interval bound.
+        """Return the lower and the upper bound for the total number of
+        confirmed cases in time for selected confidence interval level.
+        
         Parameters
         ----------
         sensitivity : float or numpy.ndarray
