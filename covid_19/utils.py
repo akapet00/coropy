@@ -70,6 +70,8 @@ def moving_average(y, n=3):
     assert y.ndim == 1, 'Data should be in array_like format.'
     if not isinstance(n, (int)):
         raise ValueError('Averaging windows should be integer.')
+    if n == 0:
+        return y
     ret = np.cumsum(y, dtype=float)
     ret[n:] = ret[n:] - ret[:-n]
     return ret[n - 1:] / n
