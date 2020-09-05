@@ -56,13 +56,13 @@ def uncertainty_quantification(
     return lower_bound_scaler, upper_bound_scaler
 
 
-def estimate(confirmed_cases, averaging_period=7, shedding_period=5):
+def estimate(confirmed_cases, averaging_period=7, testing_delay=5):
     confirmed_cases_bias = np.r_[0, confirmed_cases]
     new_daily_cases = np.diff(confirmed_cases_bias)
     smoothed_new_daily_cases = moving_average(new_daily_cases, averaging_period)
     R = np.divide(
-        smoothed_new_daily_cases[shedding_period:], 
-        smoothed_new_daily_cases[:-shedding_period],
-        out=np.zeros(smoothed_new_daily_cases[:-shedding_period].size, dtype=float),
-        where=smoothed_new_daily_cases[:-shedding_period]!=0)
-    return R
+        smoothed_new_daily_cases[testing_delay:], 
+        smoothed_new_daily_cases[:-testing_delay],
+        out=np.zeros(smoothed_new_daily_cases[:-testing_delay].size, dtype=float),
+        where=smoothed_new_daily_cases[:-testing_delay]!=0)
+    return R, smoothed_new_daily_cases
