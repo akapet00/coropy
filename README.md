@@ -45,6 +45,7 @@ There are currently 6 notebooks, all exploring the COVID-19 situation in Croatia
 * [Modified SEIR simulation](https://github.com/antelk/covid-19/blob/master/sandbox/03-Modified-SEIR-Simulation.ipynb)
 * [SEIRD simulation with confidence intervals based on RT-PCR test sensitivity](https://github.com/antelk/covid-19/blob/master/sandbox/04-SEIRD-Simulation.ipynb)
 * [Multiple outbreaks simulation](https://github.com/antelk/covid-19/blob/master/sandbox/05-Multiple-Waves-Simulation.ipynb)
+* [Reproduction number dynamics in time](https://github.com/antelk/covid-19/blob/master/sandbox/06-Basic-Reproduction-Number-Time-Series.ipynb)
 
 ## License
 
