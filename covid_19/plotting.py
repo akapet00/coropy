@@ -80,30 +80,26 @@ def plot_data(
     days = mdates.drange(
         epidemics_start_date, epidemics_end_date, dt.timedelta(days=1)
         )
+    fig = plt.figure(figsize=(14, 8))
+    axs = fig.subplots(nrows=2, ncols=2, sharex=True, squeeze=True)
+    axs[0,0].plot(days, confirmed_cases, 'bo-', label='Total confirmed cases')
+    axs[0,0].plot(days, recovered_cases, 'ro-', label='Total recovered cases')
+    axs[0,0].legend()
+    axs[0,0].grid()
+    axs[0,0].set_ylabel('$N$')
+    axs[1,0].plot(days, death_cases, 'bo-', label='Death cases')
+    axs[1,0].legend()
+    axs[1,0].grid()
+    axs[1,0].set_ylabel('$N$')
+    axs[0,1].plot(days, active_cases, 'bo-', label='Current active cases')
+    axs[0,1].legend()
+    axs[0,1].grid()
+    axs[0,1].set_ylabel('$N$')
     if daily_tests is not None:
-        n_figs = 4
-    else:
-        n_figs = 3
-    fig = plt.figure(figsize=figsize(1.5, n_figs))
-    axs = fig.subplots(nrows=n_figs, ncols=1, sharex=True, squeeze=True)
-    axs[0].plot(days, confirmed_cases, 'bo-', label='Total confirmed cases')
-    axs[0].plot(days, recovered_cases, 'ro-', label='Total recovered cases')
-    axs[0].legend()
-    axs[0].grid()
-    axs[0].set_ylabel('$N$')
-    axs[1].plot(days, death_cases, 'bo-', label='Death cases')
-    axs[1].legend()
-    axs[1].grid()
-    axs[1].set_ylabel('$N$')
-    axs[2].plot(days, active_cases, 'bo-', label='Current active cases')
-    axs[2].legend()
-    axs[2].grid()
-    axs[2].set_ylabel('$N$')
-    if daily_tests is not None:
-        axs[3].plot(days, daily_tests, 'bo-', label='Tests performed')
-        axs[3].legend()
-        axs[3].grid()
-        axs[3].set_ylabel('$N$')
+        axs[1,1].plot(days, daily_tests, 'bo-', label='Tests performed')
+        axs[1,1].legend()
+        axs[1,1].grid()
+        axs[1,1].set_ylabel('$N$')
     _ = fig.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
     _ = fig.gca().xaxis.set_major_locator(mdates.DayLocator(interval=20))
     _ = plt.gcf().autofmt_xdate()
@@ -190,7 +186,7 @@ def plot_compartmental_model_dynamics(
         ax.plot(
             days, recovered_cases, label='removed cases',
             linestyle='None', marker='o', color='green', alpha=0.7)
-    plt.legend(loc='lower right')
+    plt.legend(loc='best')
     _ = plt.gcf().autofmt_xdate()
     plt.ylabel('$N$')
     plt.grid()
@@ -276,7 +272,7 @@ def plot_compartmental_model_forecast(
     ax.plot(forecast_days, R_pred, 'g--', label='$R$ predicted')
     if death_cases is not None and D is not None and D_pred is not None:
         ax.plot(forecast_days, D_pred, 'b--', label='$D$ predicted')
-    plt.legend(loc='lower right')
+    plt.legend(loc='best')
     _ = plt.gcf().autofmt_xdate()
     plt.ylabel('$N$')
     plt.grid()
@@ -320,18 +316,18 @@ def plot_multiple_waves_simulation(
     _ = fig.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
     _ = fig.gca().xaxis.set_major_locator(mdates.DayLocator(interval=20))
     ax.plot(days, I, 'r-', label='$I(t)$')
-    ax.plot(
+    ax.scatter(
         days, active_cases, label='Active infections',
-        linestyle='None', marker='o', color='red', alpha=0.7)
+        facecolors='none', edgecolor='red')
     ax.plot(days, R, 'g-', label='$R(t)$')
-    ax.plot(
+    ax.scatter(
         days, recovered_cases, label='Recovered cases',
-        linestyle='None', marker='o', color='green', alpha=0.7)
+        facecolors='none', edgecolor='green')
     if death_cases is not None and D is not None:
         ax.plot(days, D, 'b-', label='$D(t)$')
-        ax.plot(
+        ax.scatter(
             days, death_cases, label='Deceased cases',
-            linestyle='None', marker='o', color='blue', alpha=0.7)
+            facecolors='none', edgecolor='blue')
     _ = plt.gcf().autofmt_xdate()
     plt.ylabel('$N$')
     plt.legend(loc='best')
