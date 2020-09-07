@@ -98,7 +98,7 @@ def initial_growth(
         for i in range(x_future.size)]
     props = dict(boxstyle='round', facecolor='lavender', alpha=1.0)
       
-    plt.figure(figsize=(12, 8))
+    plt.figure(figsize=(12, 6))
     plt.plot(
         date_list, confirmed_cases_adjusted, label='confirmed cases',
         color='blue', linestyle='-', marker='o', markersize=9)
@@ -131,7 +131,7 @@ def initial_growth(
         
         for vals in zip(date_list_future[1:], predicted_curve[1,1:]):
             plt.text(
-                vals[0], vals[1] - 175, str(int(vals[1])), 
+                vals[0], vals[1] - 500, str(int(vals[1])), 
                 verticalalignment='top', bbox=props)
     else:
         plt.plot(
@@ -142,7 +142,7 @@ def initial_growth(
             color='red', linestyle='--', marker='o')
         for vals in zip(date_list_future[1:], predicted_curve[1:]):
             plt.text(
-                vals[0], vals[1] - 175, str(int(vals[1])), 
+                vals[0], vals[1] - 500, str(int(vals[1])), 
                 verticalalignment='top', bbox=props)
     plt.legend()
     plt.grid()
@@ -204,20 +204,9 @@ def seir_dynamics(
     
     (beta, delta, alpha, gamma), loss = seir_model.fit(
         active_cases, removed_cases, initial_conditions)
-    R_eff = beta / (alpha+gamma)
-    print(
-        'Optimal params\n--------------\n',
-        f'beta: {beta}\n',
-        f'delta: {delta}\n',
-        f'alpha: {alpha}\n',
-        f'gamma: {gamma}\n')
-    print(
-        'Effective repr number\n--------------------\n',
-        f'R effective = beta/(alpha+gamma) = {R_eff}\n')
     (S, E, I, R) = seir_model.simulate()
     
     if plot_sim:
-        print('Simulation plot\n---------------')
         plot_compartmental_model_dynamics(
             epidemics_start_date, active_cases, I, removed_cases, R)
     if plot_l:
@@ -273,7 +262,7 @@ def seird_dynamics(
     loss : list
         Loss values during the optimization procedure.        
     """    
-    seird_model = SEIRModel(
+    seird_model = SEIRDModel(
         loss_fn='mse',
         sensitivity=sensitivity,
         specificity=specificity,
@@ -285,20 +274,9 @@ def seird_dynamics(
         recovered_cases,
         death_cases, 
         initial_conditions)
-    R_eff = beta / (alpha + gamma)
-    print(
-        'Optimal params\n--------------\n',
-        f'beta: {beta}\n',
-        f'alpha: {alpha}\n',
-        f'gamma: {gamma}\n',
-        f'mu: {mu}\n')
-    print(
-        'Effective repr number\n---------------------\n',
-        f'R effective = beta/(alpha+gamma) = {R_eff}\n')
     (S, E, I, R, D) = seird_model.simulate()
     
     if plot_sim:
-        print('Simulation plot\n---------------')
         plot_compartmental_model_dynamics(
             epidemics_start_date,
             active_cases,
