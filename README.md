@@ -27,6 +27,22 @@ $ cd covid-19
 $ conda env create -f conda_env.yml
 ```
 
+## Installation
+
+Install from the source using pip
+
+```bash
+$ git clone https://github.com/antelk/covid-19 # if it is not already cloned
+$ cd covid-19
+$ pip install .
+```
+
+or directly using the standard python `setup.py` installation
+
+```bash
+$ python setup.py install
+```
+
 ## Running a simulation
 
 See [Examples](#Examples) section.
