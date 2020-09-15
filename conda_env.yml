@@ -1,7 +1,4 @@
-# This file may be used to create a conda environment using:
-# $ conda create --file conda_env.yml
-
-name: covid_19
+name: coropy
 dependencies:
   - python>3.6
   - scipy

@@ -1,10 +1,6 @@
-# Modeling the Epidemic Outbreak and Dynamics of COVID-19 in Croatia
+# Modeling the Epidemic Outbreak and Dynamics of the coronavirus disease (COVID-19)
 
-This repository contains the code base for the graduate course in [Modeling and Simulation of Physical Systems](https://nastava.fesb.unist.hr/nastava/predmeti/11623) and for the paper which can be accessed [here](https://arxiv.org/abs/2005.01434). 
-
-Abstract
---------
-The paper deals with a modeling of the ongoing epidemic caused by Coronavirus disease 2019 (COVID-19) on the closed territory of the Republic of Croatia. Using the official public information on the number of confirmed infected, recovered and deceased individuals, the modified SEIR compartmental model is developed to describe the underlying dynamics of the epidemic. Fitted modified SEIR model provides the prediction of the disease progression in the near future, considering strict control interventions by means of social distancing and quarantine for infected and at-risk individuals introduced at the beginning of COVID-19 spread on February, 25th by Croatian Ministry of Health. Assuming the accuracy of provided data and satisfactory representativeness of the model used, the basic reproduction number is derived. Obtained results portray potential positive developments and justify the stringent precautionary measures introduced by the Ministry of Health. 
+Initially, this Python package was developed as a part of the graduate course in [Modeling and Simulation of Physical Systems](https://nastava.fesb.unist.hr/nastava/predmeti/11623) and for the paper which can be accessed [here](https://arxiv.org/abs/2005.01434). Currently, this is an ongoing project that provides the ability to model the initial growth of the infected individuals and the dynamics of the epidemic, fitting the corresponding curves, observing the epidemic situation through descriptive statistics and calculating epidemiological parameters e.g. expected disease duration, transmission coefficient, reproductive number etc.
 
 Citation
 --------
@@ -50,4 +46,3 @@ There are currently 6 notebooks, all exploring the COVID-19 situation in Croatia
 ## License
 
 [MIT](https://github.com/antelk/covid-19/blob/master/LICENSE)
-
