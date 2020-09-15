@@ -159,11 +159,11 @@ def run(
         sensitivity = kwargs['sensitivity']
         specificity = kwargs['specificity']
         daily_tests = kwargs['daily_tests']
-    lb_scaler, ub_scaler = uncertainty_quantification(
-        sensitivity=sensitivity, 
-        specificity=specificity,
-        confirmed_cases=confirmed_cases,
-        daily_tests=daily_tests)
+        lb_scaler, ub_scaler = uncertainty_quantification(
+            sensitivity=sensitivity, 
+            specificity=specificity,
+            confirmed_cases=confirmed_cases,
+            daily_tests=daily_tests)
 
     epidemics_duration = confirmed_cases.size
     dates = mdates.drange(
