@@ -437,10 +437,8 @@ class SEIRDModel(CompartmentalModel):
                 self.loss_fn,
                 ),
             method='L-BFGS-B',
-            bounds=[(1.e-6, 1), (1.e-6, 1), (1.e-6, 1), (1.e-6, 1),],
-            options={
-                'disp': True, 'maxiter': 1000, 'ftol': 1.e-21, 'gtol': 1.e-31
-                },
+            bounds=[(0, 1), (0, 1), (0, 1), (0, 1),],
+            options={'disp': True, 'maxiter': 1000},
             callback=print_loss,
         )
         self.beta, self.alpha, self.gamma, self.mu = opt.x
