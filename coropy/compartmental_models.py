@@ -212,7 +212,7 @@ class SEIRModel(CompartmentalModel):
         active_cases, 
         removed_cases,
         initial_conditions,
-        initial_guess=[0.001, 0.001, 0.001, 0.001],
+        initial_guess=[0.1, 0.1, 0.1, 0.1],
         ):
         """Fit SEIR model.
         
@@ -437,7 +437,7 @@ class SEIRDModel(CompartmentalModel):
                 self.loss_fn,
                 ),
             method='L-BFGS-B',
-            bounds=[(1.e-6, 10.), (1.e-6, 10.), (1.e-6, 10.), (1.e-6, 10.),],
+            bounds=[(1.e-6, 1), (1.e-6, 1), (1.e-6, 1), (1.e-6, 1),],
             options={
                 'disp': True, 'maxiter': 1000, 'ftol': 1.e-21, 'gtol': 1.e-31
                 },
