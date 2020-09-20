@@ -12,7 +12,7 @@ import matplotlib.dates as mdates
 from .utils import moving_average
 
 
-def uncertainty_quantification(
+def _uncertainty_quantification(
     sensitivity, specificity, confirmed_cases, daily_tests):
     """Return the lower and the upper bound scaler for the reproduction
     number in time in the 95% confidence interval.
@@ -85,7 +85,7 @@ def uncertainty_quantification(
     return lower_bound_scaler, upper_bound_scaler
 
 
-def estimate(confirmed_cases, averaging_period, symptoms_delay):
+def _estimate(confirmed_cases, averaging_period, symptoms_delay):
     """Return the time series estimate for reproduction number based on
     the number of the total number of positive confirmed cases.
 
@@ -124,15 +124,15 @@ def estimate(confirmed_cases, averaging_period, symptoms_delay):
     return R
 
 
-def run(
+def simulate(
     epidemics_start_date, 
     confirmed_cases,
     averaging_period=16,
     symptoms_delay=3,
     ci_plot=False,
     **kwargs):
-    """Visualize the R0 with respect to the number of confirmed
-    infections daily."
+    """Simulate and visualize the R0 with respect to the number of 
+    confirmed infections daily."
     
     Parameters
     ----------
@@ -151,7 +151,7 @@ def run(
     """
     delay = averaging_period + symptoms_delay
 
-    R = estimate(confirmed_cases, averaging_period, symptoms_delay)
+    R = _estimate(confirmed_cases, averaging_period, symptoms_delay)
     R_averaging_period = int(averaging_period / symptoms_delay)
     R_smoothed = moving_average(R, R_averaging_period)
 
@@ -159,7 +159,7 @@ def run(
         sensitivity = kwargs['sensitivity']
         specificity = kwargs['specificity']
         daily_tests = kwargs['daily_tests']
-        lb_scaler, ub_scaler = uncertainty_quantification(
+        lb_scaler, ub_scaler = _uncertainty_quantification(
             sensitivity=sensitivity, 
             specificity=specificity,
             confirmed_cases=confirmed_cases,
@@ -173,22 +173,22 @@ def run(
     fig = plt.figure(figsize=(12, 6))
     ax1 = fig.add_subplot(111)
     ax1.plot(dates, confirmed_cases, 'b-', label='Cumulative infectious cases')
-    ax1.tick_params(axis='y', labelcolor='blue')
-    ax1.set_ylabel('Confirmed cases', color='blue')
+    ax1.tick_params(axis='y', labelcolor='b')
+    ax1.set_ylabel('Confirmed cases', color='b')
     ax1.legend()
     ax1.grid(None)
 
     ax2 = ax1.twinx()
-    ax2.scatter(dates[:-delay+1], R, color='red', edgecolor='black', label='R0 values')
+    ax2.scatter(dates[:-delay+1], R, color='r', edgecolor='black', label='R values')
     ax2.plot(dates, np.ones(dates.shape), 'k--', label='Critical R value')
-    ax2.plot(dates[R_averaging_period:-delay+2], R_smoothed, 'r-', linewidth=2, label='R0 averaged')
+    ax2.plot(dates[R_averaging_period:-delay+2], R_smoothed, 'r-', linewidth=2, label='R averaged')
     if ci_plot:
         ax2.fill_between(dates[R_averaging_period:-delay+2],
                         lb_scaler[R_averaging_period:-delay+2] * R_smoothed,
                         ub_scaler[R_averaging_period:-delay+2] * R_smoothed,
                         color='r', alpha=0.15, label='95% CI')
     ax2.tick_params(labelcolor='r')
-    ax2.set_ylabel('R0 values', color='r')
+    ax2.set_ylabel('R values', color='r')
     ax2.legend()
 
     fig.gca().xaxis.set_major_formatter(
