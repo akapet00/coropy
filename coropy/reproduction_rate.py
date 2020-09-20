@@ -156,15 +156,23 @@ def simulate(
     R_smoothed = moving_average(R, R_averaging_period)
 
     if ci_plot:
-        sensitivity = kwargs['sensitivity']
-        specificity = kwargs['specificity']
-        daily_tests = kwargs['daily_tests']
-        lb_scaler, ub_scaler = _uncertainty_quantification(
-            sensitivity=sensitivity, 
-            specificity=specificity,
-            confirmed_cases=confirmed_cases,
-            daily_tests=daily_tests)
-
+        try:
+            sensitivity = kwargs['sensitivity']
+            specificity = kwargs['specificity']
+            daily_tests = kwargs['daily_tests']
+            if sensitivity and specificity and daily_tests:
+                lb_scaler, ub_scaler = _uncertainty_quantification(
+                    sensitivity=sensitivity, 
+                    specificity=specificity,
+                    confirmed_cases=confirmed_cases,
+                    daily_tests=daily_tests)
+        except KeyError as e:
+            warnings.warn(
+            'Confidence interval could not be calculated. '
+            'Invalid and/or missing keyword argument. '
+            'Proceeding as `ci_plot=False`.')
+            ci_plot = False
+            
     epidemics_duration = confirmed_cases.size
     dates = mdates.drange(
         epidemics_start_date,
@@ -172,21 +180,35 @@ def simulate(
         dt.timedelta(days=1))
     fig = plt.figure(figsize=(12, 6))
     ax1 = fig.add_subplot(111)
-    ax1.plot(dates, confirmed_cases, 'b-', label='Cumulative infectious cases')
+    ax1.plot(
+        dates, confirmed_cases, 
+        'b-', 
+        label='Cumulative infectious cases')
     ax1.tick_params(axis='y', labelcolor='b')
     ax1.set_ylabel('Confirmed cases', color='b')
     ax1.legend()
     ax1.grid(None)
 
     ax2 = ax1.twinx()
-    ax2.scatter(dates[:-delay+1], R, color='r', edgecolor='black', label='R values')
-    ax2.plot(dates, np.ones(dates.shape), 'k--', label='Critical R value')
-    ax2.plot(dates[R_averaging_period:-delay+2], R_smoothed, 'r-', linewidth=2, label='R averaged')
+    ax2.scatter(
+        dates[:-delay+1], R, 
+        color='r', edgecolor='black', 
+        label='R values')
+    ax2.plot(
+        dates, np.ones(dates.shape), 
+        'k--', 
+        label='Critical R value')
+    ax2.plot(
+        dates[R_averaging_period:-delay+2], R_smoothed, 
+        'r-', linewidth=2, 
+        label='R averaged')
     if ci_plot:
-        ax2.fill_between(dates[R_averaging_period:-delay+2],
-                        lb_scaler[R_averaging_period:-delay+2] * R_smoothed,
-                        ub_scaler[R_averaging_period:-delay+2] * R_smoothed,
-                        color='r', alpha=0.15, label='95% CI')
+        ax2.fill_between(
+            dates[R_averaging_period:-delay+2],
+            lb_scaler[R_averaging_period:-delay+2] * R_smoothed,
+            ub_scaler[R_averaging_period:-delay+2] * R_smoothed,
+            color='r', alpha=0.15, 
+            label='95% CI')
     ax2.tick_params(labelcolor='r')
     ax2.set_ylabel('R values', color='r')
     ax2.legend()
