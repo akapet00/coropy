@@ -95,13 +95,14 @@ def initial_growth(
     x_future, predicted_curve = exp_model.predict(n_days)
     date_list_future = [
         date_list[-1] + dt.timedelta(days=i) 
-        for i in range(x_future.size)]
+        for i in range(x_future.size + 1)]
+    date_list_future = date_list_future[1:]
     props = dict(boxstyle='round', facecolor='lavender', alpha=1.0)
       
     plt.figure(figsize=(12, 6))
     plt.plot(
         date_list, confirmed_cases_adjusted, label='confirmed cases',
-        color='blue', linestyle='-', marker='o', markersize=9)
+        color='blue', linestyle='-', marker='o')
     if plot_confidence_intervals:
         plt.plot(
             date_list, fitted_curve[0, :], label=f'lower/upper bound',
@@ -129,7 +130,7 @@ def initial_growth(
             date_list_future, predicted_curve[0, :], predicted_curve[2, :],
             color='red', alpha=0.1)
         
-        for vals in zip(date_list_future[1:], predicted_curve[1,1:]):
+        for vals in zip(date_list_future, predicted_curve[1, :]):
             plt.text(
                 vals[0], vals[1] - 500, str(int(vals[1])), 
                 verticalalignment='top', bbox=props)
@@ -140,7 +141,7 @@ def initial_growth(
         plt.plot(
             date_list_future, predicted_curve, label='extrapolated',
             color='red', linestyle='--', marker='o')
-        for vals in zip(date_list_future[1:], predicted_curve[1:]):
+        for vals in zip(date_list_future, predicted_curve):
             plt.text(
                 vals[0], vals[1] - 500, str(int(vals[1])), 
                 verticalalignment='top', bbox=props)

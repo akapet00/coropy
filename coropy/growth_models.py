@@ -83,8 +83,8 @@ class GrowthCOVIDModel(object):
         normalize : bool, optional
             Should the data be normalized to [0, 1] range.
         confidence_interval : bool, optional
-            Generate CI using fitted params of a given function 
-            +/- standard deviation.
+            Generate CI using fitted params of a given function +/- 
+            standard deviation.
         kwargs : dict, optional
             If `confidence_interval` flag is set to True and both
             kwargs are specified, the confidence intervals with be
@@ -152,14 +152,13 @@ class GrowthCOVIDModel(object):
             self.ci_level = None
             self.daily_tests = None
                     
-    def fit(self, confirmed_cases):
+    def fit(self, data):
         """Fit the data to the growth function.
         
         Parameters
         ----------
-        confirmed_cases : numpy.ndarray
-            Cumulative number of confirmed infected COVID-19 cases per 
-            day.
+        data : numpy.ndarray
+            Cumulative number of cumulative infectious cases.
         
         Returns
         -------
@@ -169,13 +168,14 @@ class GrowthCOVIDModel(object):
             Fitted growth function with lower and upper bound if
             `confidence_interval` is set to True.
         """
-        self.confirmed_cases = confirmed_cases
-
+        self.data = data
         if self.normalize:
-            y = normalize(confirmed_cases)
+            y = normalize(self.data)
+            x = normalize(np.arange(self.data.size))
         else: 
-            y = confirmed_cases
-        x = np.arange(confirmed_cases.size)
+            y = self.data
+            x = np.arange(self.data.size)
+
         self.popt, self.pcov = curve_fit(self.function, x, y)
         fitted = self.function(x, *self.popt)
 
@@ -184,9 +184,10 @@ class GrowthCOVIDModel(object):
             lower_bound = self.function(x, *(self.popt - self.perr))
             upper_bound = self.function(x, *(self.popt + self.perr))
             if self.normalize: 
-                fitted = restore(fitted, self.confirmed_cases)
-                lower_bound = restore(lower_bound, self.confirmed_cases)
-                upper_bound = restore(upper_bound, self.confirmed_cases)
+                x = restore(x, np.arange(self.data.size))
+                fitted = restore(fitted, self.data)
+                lower_bound = restore(lower_bound, self.data)
+                upper_bound = restore(upper_bound, self.data)
             fitted = np.r_[
                 lower_bound.reshape(1, -1), 
                 fitted.reshape(1, -1), 
@@ -195,31 +196,36 @@ class GrowthCOVIDModel(object):
         elif (self.ci and self.sensitivity and self.specificity and 
                 self.ci_level and self.daily_tests is not None):
             if self.normalize:
-                fitted = restore(fitted, self.confirmed_cases)
+                x = restore(x, np.arange(self.data.size))
+                fitted = restore(fitted, self.data)
             lower_bound, upper_bound = self.calculate_ci(
                 self.sensitivity, 
                 self.specificity, 
                 fitted, 
                 self.daily_tests, 
                 self.ci_level)
-            fitted = np.r_[
-                lower_bound.reshape(1, -1), 
-                fitted.reshape(1, -1), 
-                upper_bound.reshape(1, -1)]
             # In order to figure out extrapolated bounds, functional
             # parameters of bounds have to be determined.
             # Following variables will be used if `predicted` method is
             # called.
             self.lb_reference = lower_bound
             self.ub_reference = upper_bound
-            if self.normalize: 
+
+            fitted = np.r_[
+                lower_bound.reshape(1, -1), 
+                fitted.reshape(1, -1), 
+                upper_bound.reshape(1, -1)]
+            
+            if self.normalize:
+                x = normalize(x)
                 lower_bound = normalize(lower_bound)
                 upper_bound = normalize(upper_bound)
             self.lb_popt, _ = curve_fit(self.function, x, lower_bound)
             self.ub_popt, _ = curve_fit(self.function, x, upper_bound)
 
         elif not self.ci and self.normalize:
-            fitted = restore(fitted, self.confirmed_cases)
+            x = restore(x, np.arange(self.data.size))
+            fitted = restore(fitted, self.data)
         return x, fitted
 
     def predict(self, n_days):
@@ -232,24 +238,33 @@ class GrowthCOVIDModel(object):
         
         Returns
         -------
-        x_future : numpy.ndarray
+        x_fut : numpy.ndarray
             The independent variable where the data is predicted.
         predicted : numpy.ndarray
             Extrapolated data with lower and upper bound if 
             `confidence_interval` is set to True.
         """
         assert isinstance(n_days, (int,)), 'Number of days must be integer.'
-        size = self.confirmed_cases.size
-        x_future = np.arange(size-1, size+n_days)
-        predicted = self.function(x_future, *self.popt)
+        if self.normalize:
+            x = normalize(np.arange(self.data.size))
+            delta_x = np.diff(x[:2])[0]
+            fut_start_norm = np.max(x) + delta_x
+            fut_end_norm = fut_start_norm + (n_days - 1)*delta_x
+            x_fut = np.linspace(fut_start_norm, fut_end_norm, n_days)
+        else: 
+            x = np.arange(self.data.size)
+            x_fut = np.arange(self.data.size, self.data.size + n_days)
+        
+        predicted = self.function(x_fut, *self.popt)
 
         if self.ci and not self.sensitivity:
-            lower_bound = self.function(x_future, *(self.popt - self.perr))
-            upper_bound = self.function(x_future, *(self.popt + self.perr))
+            lower_bound = self.function(x_fut, *(self.popt - self.perr))
+            upper_bound = self.function(x_fut, *(self.popt + self.perr))
             if self.normalize: 
-                predicted = restore(predicted, self.confirmed_cases)
-                lower_bound = restore(lower_bound, self.confirmed_cases)
-                upper_bound = restore(upper_bound, self.confirmed_cases)
+                x_fut = restore(x_fut, np.arange(self.data.size))
+                predicted = restore(predicted, self.data)
+                lower_bound = restore(lower_bound, self.data)
+                upper_bound = restore(upper_bound, self.data)
             predicted = np.r_[
                 lower_bound.reshape(1, -1), 
                 predicted.reshape(1, -1), 
@@ -257,10 +272,11 @@ class GrowthCOVIDModel(object):
 
         elif (self.ci and self.sensitivity and self.specificity and 
                 self.ci_level and self.daily_tests is not None):
-            lower_bound = self.function(x_future, *self.lb_popt)
-            upper_bound = self.function(x_future, *self.ub_popt)
+            lower_bound = self.function(x_fut, *self.lb_popt)
+            upper_bound = self.function(x_fut, *self.ub_popt)
             if self.normalize:
-                predicted = restore(predicted, self.confirmed_cases)
+                x_fut = restore(x_fut, np.arange(self.data.size))
+                predicted = restore(predicted, self.data)
                 lower_bound = restore(lower_bound, self.lb_reference)
                 upper_bound = restore(upper_bound, self.ub_reference)
             predicted = np.r_[
@@ -269,9 +285,10 @@ class GrowthCOVIDModel(object):
                 upper_bound.reshape(1, -1)]
 
         elif not self.ci and self.normalize:
-            predicted = restore(predicted, self.confirmed_cases)
+            x_fut = restore(x_fut, np.arange(self.data.size))
+            predicted = restore(predicted, self.data)
 
-        return x_future, predicted
+        return x_fut, predicted
 
     @staticmethod
     def calculate_ci(
