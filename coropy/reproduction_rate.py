@@ -160,7 +160,7 @@ def simulate(
             sensitivity = kwargs['sensitivity']
             specificity = kwargs['specificity']
             daily_tests = kwargs['daily_tests']
-            if sensitivity and specificity and daily_tests:
+            if sensitivity and specificity and daily_tests is not None:
                 lb_scaler, ub_scaler = _uncertainty_quantification(
                     sensitivity=sensitivity, 
                     specificity=specificity,
