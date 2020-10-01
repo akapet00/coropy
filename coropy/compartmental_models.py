@@ -139,9 +139,8 @@ class CompartmentalModel(object):
     def calculate_ci(
         sensitivity, specificity, positives, actives, recoveries, total_tests
         ):
-        """Return 2-d array with 3 rows, first row is the lower
-        confidence interval bound, the second row is the fitted data
-        and the last row is the upper confidence interval bound.
+        """Return two arrays: the lower confidence interval bound, the
+        second row is the upper confidence interval bound.
 
         Parameters
         ----------
@@ -168,40 +167,39 @@ class CompartmentalModel(object):
         -------
         tuple
             Tuple consisting two numpy array. The first array is the
-            lower CI bound scaler, and the second row is the upper CI
-            bound scaler.
+            lower CI bound array, and the second row is the upper CI
+            bound array.
         """
         std_sensitivity_err = np.sqrt(np.divide(
             (1 - sensitivity) * sensitivity, 
             positives, 
             out=np.zeros(positives.shape, dtype=float), 
-            where=positives!=0,
-        ))
+            where=positives!=0,))
         sensitivity_ci = 1.960 * std_sensitivity_err
         lower_bound_sensitivity = np.abs(sensitivity - sensitivity_ci)
         lower_bound_true_positives = lower_bound_sensitivity * positives
-        cumulative_cases = np.cumsum(lower_bound_true_positives)
-        lower_bound_active_infections = cumulative_cases - recoveries
-        lower_bound_scaler = lower_bound_active_infections / actives
+        lower_bound_active_infections = np.cumsum(lower_bound_true_positives)\
+                                        - recoveries
+        lower_bound_active_infections[np.where(
+            lower_bound_active_infections<0)] = 0 
 
         # yesterday's test gives today's result 
-        total_tests = np.concatenate((np.array([total_tests[0]]), total_tests[:-1]))
+        total_tests = np.concatenate((np.array([total_tests[0]]),
+            total_tests[:-1]))
         negatives = total_tests - positives
         std_specificity_err = np.sqrt(np.divide(
             (1 - specificity) * specificity,
             negatives,
             out=np.zeros(negatives.shape, dtype=float), 
-            where=negatives!=0,
-        ))
+            where=negatives!=0,))
         specificity_ci = 1.960 * std_specificity_err
         upper_bound_specificity = np.abs(specificity + specificity_ci)
         upper_bound_true_negatives = upper_bound_specificity * negatives
         upper_bound_false_negatives = negatives - upper_bound_true_negatives
         upper_bound_true_positives = upper_bound_false_negatives + positives
-        cumulative_cases = np.cumsum(upper_bound_true_positives)
-        upper_bound_active_infections = cumulative_cases - recoveries
-        upper_bound_scaler = upper_bound_active_infections / actives
-        return (lower_bound_scaler, upper_bound_scaler)
+        upper_bound_active_infections = np.cumsum(upper_bound_true_positives)\
+                                        - recoveries
+        return (lower_bound_active_infections, upper_bound_active_infections)
             
 
 class SEIRModel(CompartmentalModel):
@@ -284,7 +282,7 @@ class SEIRModel(CompartmentalModel):
         )
         if (self.sensitivity and self.specificity and 
                 self.total_tests is not None):
-            (lower_bound_scaler, upper_bound_scaler) = self.calculate_ci(
+            (lower_bound, upper_bound) = self.calculate_ci(
                 self.sensitivity, 
                 self.specificity,
                 self.new_positives,
@@ -293,9 +291,9 @@ class SEIRModel(CompartmentalModel):
                 self.total_tests,
                 )
             I_ci = np.r_[
-                (lower_bound_scaler*sol.y[2]).reshape(1, -1),
+                lower_bound.reshape(1, -1),
                 sol.y[2].reshape(1, -1),
-                (upper_bound_scaler*sol.y[2]).reshape(1, -1),
+                upper_bound.reshape(1, -1),
             ]
             return (sol.y[0], sol.y[1], I_ci, sol.y[3])
         return (sol.y[0], sol.y[1], sol.y[2], sol.y[3])
@@ -464,7 +462,7 @@ class SEIRDModel(CompartmentalModel):
         )
         if (self.sensitivity and self.specificity and 
                  self.total_tests is not None):
-            (lower_bound_scaler, upper_bound_scaler) = self.calculate_ci(
+            (lower_bound, upper_bound) = self.calculate_ci(
                 self.sensitivity, 
                 self.specificity,
                 self.new_positives,
@@ -473,9 +471,9 @@ class SEIRDModel(CompartmentalModel):
                 self.total_tests,
                 )
             I_ci = np.r_[
-                (lower_bound_scaler*sol.y[2]).reshape(1, -1),
+                lower_bound.reshape(1, -1),
                 sol.y[2].reshape(1, -1),
-                (upper_bound_scaler*sol.y[2]).reshape(1, -1),
+                upper_bound.reshape(1, -1),
             ]
             return (sol.y[0], sol.y[1], I_ci, sol.y[3], sol.y[4])
         return (sol.y[0], sol.y[1], sol.y[2], sol.y[3], sol.y[4])
