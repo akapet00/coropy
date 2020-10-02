@@ -86,7 +86,7 @@ def _SEIRD(t, y, beta, alpha, gamma, mu):
 class CompartmentalModel(object):
     """General compartmental model class."""
 
-    def __init__(self, loss_fun='mse', calc_ci=False, **kwargs):
+    def __init__(self, loss_fun, ode_system, calc_ci, **kwargs):
         """Constructor.
         
         Parameters
@@ -94,6 +94,11 @@ class CompartmentalModel(object):
         loss_fun: str, optional
             Estimator that measures distance between true and predicted
             values. Loss function is set to `mean_squared_error`.
+        ode_system : callable(t, y, ...), optional
+            User defined SEIR-based compartmental model.
+            The first parameter is a sequence of time points for which
+            to solve for `y`. This sequence must be monotonically
+            increasing sequence and repeated values are not allowed.
         calc_ci: bool, optional
             Calculate confidence interval by providing additional
             keyword arguments specified below.
@@ -120,7 +125,6 @@ class CompartmentalModel(object):
             self.loss_fun = mae
         else:
             raise ValueError('Given loss function is not supported.')
-        
         self.calc_ci = calc_ci
         if self.calc_ci:
             if kwargs:
@@ -214,7 +218,15 @@ class CompartmentalModel(object):
 
 class SEIRModel(CompartmentalModel):
     """SEIR model class."""
-
+    
+    def __init__(self, loss_fun='mse', ode_system=None, calc_ci=False, 
+        **kwargs):
+        super().__init__(loss_fun, ode_system, calc_ci, **kwargs)
+        if callable(ode_system):
+            self.ode_system = ode_system
+        else:
+            self.ode_system = _SEIR
+        
     def fit(self, cum_positives, cum_recovered, cum_deceased, IC,
         guess=[0.1, 0.1, 0.1, 0.1]):
         """Fit SEIR model.
@@ -230,7 +242,11 @@ class SEIRModel(CompartmentalModel):
         IC : list
             Initial values of S, E, I and R at the first day.
         guess : list, optional
-            Initial guess for parameters to be fitted.
+            Initial guess for parameters to be fitted. Size of the list
+            depends on the number of free parameters in `ode_system`.
+            For default `_SEIR`, there should be 4 unknown parameters:
+            transition or infectious rate, recovery rate, incubation
+            rate and direct transition rate, respectively.
         
         Returns
         -------
@@ -255,15 +271,16 @@ class SEIRModel(CompartmentalModel):
             """Optimizer callback."""
             loss_values.append(
                 SEIRModel._loss(p, self.active, self.removed, self.IC, 
-                    self.loss_fun))
-
+                    self.loss_fun, self.ode_system))
+        # optimization procedure
         logging.basicConfig(stream=sys.stdout, level=logging.INFO)
         logging.info(f'L-BFGS-B optimization started: {dt.datetime.now()}')
         start_stopwatch = time.time()
         opt = minimize(
             fun=SEIRModel._loss, 
             x0=guess,
-            args=(self.active, self.removed, self.IC, self.loss_fun),
+            args=(self.active, self.removed, self.IC, self.loss_fun,
+                self.ode_system),
             method='L-BFGS-B',
             bounds=[(1e-5, 1.0)] * len(guess),
             options={'maxiter': 1000, 'disp': True},
@@ -284,7 +301,7 @@ class SEIRModel(CompartmentalModel):
             S, E, I and R simulated values.
         """
         sol = solve_ivp(
-            fun=_SEIR, 
+            fun=self.ode_system, 
             t_span=(0, self.active.size), 
             y0=self.IC, 
             args=tuple(self.params),
@@ -322,7 +339,7 @@ class SEIRModel(CompartmentalModel):
         assert isinstance(n_days, (int, )), '`n_days` must be an integer.'
         eff_idx = self.active.size
         sol = solve_ivp(
-            fun=_SEIR, 
+            fun=self.ode_system, 
             t_span=(0, eff_idx + n_days),
             y0=self.IC,
             args=tuple(self.params),
@@ -346,7 +363,7 @@ class SEIRModel(CompartmentalModel):
         return (self.params)
     
     @staticmethod
-    def _loss(params, active, cum_removed, IC, loss_fun):
+    def _loss(params, active, cum_removed, IC, loss_fun, ode_system):
         """Calculate and return the loss function between the actual
         and predicted values.
         
@@ -359,9 +376,11 @@ class SEIRModel(CompartmentalModel):
         cum_removed : numpy.ndarray
             Cumulative number of confirmed recoveries and deaths.
         IC: list
-            Initial conditions
+            Initial conditions.
         loss_fun : str
             Estimator.
+        ode_system : callable(t, y, ...)
+            User defined SEIR-based compartmental model.
                 
         Returns
         -------
@@ -371,7 +390,7 @@ class SEIRModel(CompartmentalModel):
         """
         size = active.size
         sol = solve_ivp(
-            fun=_SEIR, 
+            fun=ode_system, 
             t_span=(0, size), 
             y0=IC, 
             args=params,
@@ -386,74 +405,78 @@ class SEIRModel(CompartmentalModel):
 class SEIRDModel(CompartmentalModel):
     """SEIRD model class."""
 
-    def fit(
-        self, 
-        active_cases, 
-        recovered_cases, 
-        death_cases, 
-        initial_conditions, 
-        initial_guess=[0.5, 0.1, 0.01, 0.01],
-        ):
+    def __init__(self, loss_fun='mse', ode_system=None, calc_ci=False, 
+        **kwargs):
+        super(SEIRDModel, self).__init__(loss_fun, ode_system, calc_ci, 
+            **kwargs)
+        if callable(ode_system):
+            self.ode_system = ode_system
+        else:
+            self.ode_system = _SEIRD
+
+    def fit(self, cum_positives, cum_recovered, cum_deceased, IC, 
+        guess=[0.1, 0.1, 0.01, 0.01]):
         """Fit SEIRD model.
         
         Parameters
         ----------
-        active_cases : numpy.ndarray
-            Time series of currently active infected individuals.
-        recovered_cases : numpy.ndarray
-            Time series of recovered individuals.
-        death_cases : numpy.ndarray
-            Time series of deceased individuals.
-        initial_conditions : list
-            Values of S, E, I, R and D at the first day.
-        initial_guess : list, optional
-            Array of real elements by means of possible values of
-            independent variables.
+        cum_positives : numpy.ndarray
+            Cumaltive number of confirmed positive infections.
+        cum_recovered : numpy.ndarray
+            Cumulative number of confirmed recoveries. 
+        cum_deceased : numpy.ndarray
+            Cumulative number of deaths.
+        IC : list
+            Initial values of S, E, I, R and D at the first day.
+        guess : list, optional
+            Initial guess for parameters to be fitted. Size of the list
+            depends on the number of free parameters in `ode_system`.
+            For default `_SEIRD`, there should be 4 unknown parameters:
+            transition or infectious rate, recovery rate, incubation
+            rate and mortality rate, respectively.
         
         Returns
         -------
         tuple
-            Fitted epidemiological parameters: beta, alpha, gamma and
-            mu rate.
+            Fitted epidemiological parameters.
         list
             Loss values during the optimization procedure.
         """
-        self.active_cases = active_cases
-        self.recovered_cases = recovered_cases
-        self.death_cases = death_cases
-
-        loss = []
-        def print_loss(p):
+        assert isinstance(cum_positives, np.ndarray), \
+            '`cum_positives` has to be of `numpy.ndarray` type.'
+        assert isinstance(cum_recovered, np.ndarray), \
+            '`cum_recovered` has to be of `numpy.ndarray` type.'
+        assert isinstance(cum_deceased, np.ndarray), \
+            '`cum_deceased` has to be of `numpy.ndarray` type.'
+        self.daily_positive = np.concatenate((
+            np.array([cum_positives[0]]), np.diff(cum_positives)))
+        self.active = cum_positives - cum_recovered - cum_deceased
+        self.removed = cum_recovered + cum_deceased
+        self.IC = IC
+        loss_values = []
+        def _print_loss(p):
             """Optimizer callback."""
-            loss.append(
-                SEIRDModel._loss(
-                    p,
-                    self.active_cases,
-                    self.recovered_cases,
-                    self.death_cases,
-                    initial_conditions,
-                    self.loss_fn
-                    )
-            )
-            
-        self.y0 = initial_conditions
+            loss_values.append(
+                SEIRDModel._loss(p, self.active, cum_recovered, cum_deceased,
+                    self.IC, self.loss_fun, self.ode_system))
+        # optimization procedure
+        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+        logging.info(f'L-BFGS-B optimization started: {dt.datetime.now()}')
+        start_stopwatch = time.time()
         opt = minimize(
             fun=SEIRDModel._loss, 
-            x0=initial_guess,
-            args=(
-                self.active_cases,
-                self.recovered_cases,
-                self.death_cases,
-                self.y0,
-                self.loss_fn,
-                ),
+            x0=guess,
+            args=(self.active, cum_recovered, cum_deceased, self.IC,
+                self.loss_fun, self.ode_system),
             method='L-BFGS-B',
-            bounds=[(0, 1), (0, 1), (0, 1), (0, 1),],
-            options={'disp': True, 'maxiter': 1000},
-            callback=print_loss,
-        )
-        self.beta, self.alpha, self.gamma, self.mu = opt.x
-        return (self.beta, self.alpha, self.gamma, self.mu), loss
+            bounds=[(1e-5, 1.0)] * len(guess),
+            options={'maxiter': 1000, 'disp': True},
+            callback=_print_loss,
+            )
+        elapsed = time.time() - start_stopwatch
+        logging.info(f'Elapsed time: {round(elapsed, 4)}s')
+        self.params = opt.x
+        return self.params, loss_values
 
     def simulate(self):
         """Simulate S, E, I, R and D based on the fitted
@@ -465,29 +488,24 @@ class SEIRDModel(CompartmentalModel):
             S, E, I, R and D simulated values.
         """
         sol = solve_ivp(
-            fun=_SEIRD, 
-            t_span=(0, self.active_cases.size), 
-            y0=self.y0, 
-            args=(self.beta, self.alpha, self.gamma, self.mu),
+            fun=self.ode_system, 
+            t_span=(0, self.active.size), 
+            y0=self.IC, 
+            args=tuple(self.params),
             method='RK45', 
-            t_eval=np.arange(0, self.active_cases.size, 1), 
+            t_eval=np.arange(0, self.active.size, 1), 
             vectorized=True,
-        )
-        if (self.sensitivity and self.specificity and 
-                 self.total_tests is not None):
-            (lower_bound, upper_bound) = self.calculate_ci(
-                self.sensitivity, 
-                self.specificity,
-                self.new_positives,
-                self.active_cases,
-                self.recovered_cases,
-                self.total_tests,
-                )
+            )
+        if self.calc_ci:
+            (active_lb_ci, active_lb, active_ub, active_ub_ci) = \
+                self.calculate_ci(self.pcr_sens, self.pcr_spec,
+                    self.daily_positive, self.removed, self.daily_tests)
             I_ci = np.r_[
-                lower_bound.reshape(1, -1),
+                active_lb_ci.reshape(1, -1),
+                active_lb.reshape(1, -1),
                 sol.y[2].reshape(1, -1),
-                upper_bound.reshape(1, -1),
-            ]
+                active_ub.reshape(1, -1),
+                active_ub_ci.reshape(1, -1)]
             return (sol.y[0], sol.y[1], I_ci, sol.y[3], sol.y[4])
         return (sol.y[0], sol.y[1], sol.y[2], sol.y[3], sol.y[4])
     
@@ -506,51 +524,53 @@ class SEIRDModel(CompartmentalModel):
             S, E, I, R and D predicted values.
         """
         assert isinstance(n_days, (int, )), '`n_days` must be an integer.'
-        eff_idx = self.active_cases.size
+        eff_idx = self.active.size
         sol = solve_ivp(
-            fun=_SEIRD, 
+            fun=self.ode_system,
             t_span=(0, eff_idx + n_days),
-            y0=self.y0,
-            args=(self.beta, self.alpha, self.gamma, self.mu),
+            y0=self.IC,
+            args=tuple(self.params),
             method='RK45',
             t_eval=np.arange(0, eff_idx + n_days, 1), 
             vectorized=True,
         )
-        return (
-            sol.y[0][eff_idx:], 
-            sol.y[1][eff_idx:], 
-            sol.y[2][eff_idx:], 
-            sol.y[3][eff_idx:], 
-            sol.y[4][eff_idx:],
-        )
+        return (sol.y[0][eff_idx:], sol.y[1][eff_idx:], sol.y[2][eff_idx:],
+            sol.y[3][eff_idx:], sol.y[4][eff_idx:])
+
+    def __str__(self):
+        return('SEIRD model class')
+
+    def __repr__(self):
+        return self.__str__()
+
+    @property
+    def get_params(self):
+        if self.params is None:
+            raise ValueError('No fitted parameters. Call `fit` method first.')
+        return (self.params)
 
     @staticmethod
-    def _loss(
-        params,
-        active_cases,
-        recovered_cases,
-        death_cases,
-        initial_conditions,
-        loss_fn,
-        ):
+    def _loss(params, active, cum_recovered, cum_deceased, IC, loss_fun,
+        ode_system):
         """Calculate and return the loss function between actual and
         predicted values.
         
         Parameters
         ----------
         params : list
-            Values of beta, alpha, gamma and mu rates.
-        active_cases : numpy.ndarray
+            Epidemiological parameters
+        active: numpy.ndarray
             Time series of currently active infected individuals.
-        recovered_cases : numpy.ndarray
-            Time series of recovered individuals.
-        death_cases : numpy.ndarray
-            Time series of deceased individuals.
-        initial_conditions : list
-            Values of S, E, I, R and D at the first day.
-        loss_fn : str, optional
-            Loss function is `mse` by default, choose between `mse`,
-            `rmse` and `msle`.
+        cum_recovered : numpy.ndarray
+            Cumulative number of confirmed recoveries.
+        cum_deceased : numpy.ndarray
+            Cumulative number of confirmed recoveries.
+        IC : list
+            Initial conditions.
+        loss_fun : str
+            Estimator.
+        ode_system : callable(t, y, ...)
+            User defined SEIR-based compartmental model.
         
         Returns
         -------
@@ -558,16 +578,16 @@ class SEIRDModel(CompartmentalModel):
             Loss between the actual and predicted value of confirmed,
             recovered and deceased individuals.
         """
-        size = active_cases.size
+        size = active.size
         sol = solve_ivp(
-            fun=_SEIRD, 
+            fun=ode_system, 
             t_span=(0, size), 
-            y0=initial_conditions, 
+            y0=IC, 
             args=params,
             method='RK45', 
             t_eval=np.arange(0, size, 1), 
             vectorized=True,
         )
-        return loss_fn(sol.y[2], active_cases) \
-               + loss_fn(sol.y[3], recovered_cases) \
-               + loss_fn(sol.y[4], death_cases)
+        return loss_fun(sol.y[2], active) \
+               + loss_fun(sol.y[3], cum_recovered) \
+               + loss_fun(sol.y[4], cum_deceased)
