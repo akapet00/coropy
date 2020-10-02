@@ -1,9 +1,15 @@
+import datetime as dt
+import logging
+import sys
+import time
+import warnings
+
 import numpy as np 
 from scipy.integrate import solve_ivp
 from scipy.optimize import minimize
 
 from .utils import (mse, rmse, msle, mae)
-from .utils import normalize, restore
+from .utils import (normalize, restore)
 
 
 __all__ = ['SEIRModel', 'SEIRDModel']
@@ -75,192 +81,198 @@ def _SEIRD(t, y, beta, alpha, gamma, mu):
         gamma*I,
         mu*I,
     ]
-    
+
+
 class CompartmentalModel(object):
     """General compartmental model class."""
 
-    def __init__(
-        self, 
-        loss_fn='mse',
-        sensitivity=None,
-        specificity=None,
-        new_positives=None,
-        total_tests=None,
-        ):
+    def __init__(self, loss_fun='mse', calc_ci=False, **kwargs):
         """Constructor.
         
         Parameters
         ----------
-        loss_fn: str, optional
-            Loss function is `mse` by default
-        sensitivity : float, optional
-            Measure of the proportion of positives that are correctly
-            identified (e.g., the percentage of sick people who are
-            correctly identified as being infected). Only if all the
-            optional variables (`sensitivity`, `specifcity`,
-            `new_positives` and `total_tests`) are defined, the .95
-            confidence intervals is going to be caluclated.  
-        specificity : float, optional
-            Measure of the proportion of negatives that are correctly
-            identified (e.g., the percentage of healthy people who are
-            correctly identified as not infected).
-        new_positives : numpy.ndarray, optional
-            Time series of new daily infected individuals.
-        total_tests : numpy.ndarray, optional
-            Time series of new daily completed tests.
+        loss_fun: str, optional
+            Estimator that measures distance between true and predicted
+            values. Loss function is set to `mean_squared_error`.
+        calc_ci: bool, optional
+            Calculate confidence interval by providing additional
+            keyword arguments specified below.
+        kwargs : dict, optional
+            If `calc_ci` is set to True, and the following keyword
+            arguments are specified, `CompartmenalModel.simulate` will
+            have its output bounded in confidence intervals. Keyword
+            are as follows: `pcr_sens` (float), measure of the
+            proportion of positives that are correctly identified (e.g.
+            the percentage of sick people who are correctly identified
+            as being infected), `pcr_spec` (float), the measure of the
+            proportion of negatives that are correctly identified (e.g.
+            the percentage of healthy people who are correctly
+            identified as not infected), `daily_tests` (numpy.ndarray),
+            time series of new daily completed tests.
         """
-        if loss_fn == 'mse':
-            self.loss_fn = mse
-        elif loss_fn == 'rmse':
-            self.loss_fn = rmse
-        elif loss_fn == 'msle':
-            self.loss_fn = msle
-        elif loss_fn == 'mae':
-            self.loss_fn = mae
+        if loss_fun in ['mean_squared_error', 'mse', 'MSE']:
+            self.loss_fun = mse
+        elif loss_fun in ['root_mean_squared_error', 'rmse', 'RMSE']:
+            self.loss_fun = rmse
+        elif loss_fun in ['mean_squared_logarithmic_error', 'msle', 'MSLE']:
+            self.loss_fun = msle
+        elif loss_fun in ['mean_absolute_error', 'mae', 'MAE']:
+            self.loss_fun = mae
         else:
             raise ValueError('Given loss function is not supported.')
-        if (sensitivity and specificity and 
-                new_positives is not None and total_tests is not None):
-            assert isinstance(sensitivity, (float, )), \
-                'Sensitivity must be a floating point number in <0.5, 1]'
-            assert isinstance(specificity, (float, )), \
-                'Specificity must be a floating point number in <0.5, 1]'
-            self.sensitivity = sensitivity
-            self.specificity = specificity
-            self.new_positives = new_positives
-            self.total_tests = total_tests
-        else:
-            self.sensitivity = None
-            self.specificity = None
-            self.new_positives = None
-            self.total_tests = None
+        
+        self.calc_ci = calc_ci
+        if self.calc_ci:
+            if kwargs:
+                for kw in kwargs.keys():
+                    if kw == 'pcr_sens':
+                        assert isinstance(kwargs[kw], (float, )), \
+                            '`pcr_sens` has to be a floating point number.'
+                        self.pcr_sens = kwargs[kw]
+                    elif kw == 'pcr_spec':
+                        assert isinstance(kwargs[kw], (float, )), \
+                            '`pcr_spec` has to be a floating point number.'
+                        self.pcr_spec = kwargs[kw]
+                    elif kw == 'daily_tests':
+                        assert isinstance(kwargs[kw], np.ndarray), \
+                            '`daily_test` has to be of `numpy.ndarray` type.'
+                        self.daily_tests = kwargs[kw]
+                    else:
+                        raise KeyError('Optional keyword argument invalid.')
+            else:
+                self.calc_ci = False
+                warnings.warn(
+                    'Confidence interval will not be calculated'
+                    'Optional `kwargs` are not specified.')
+        self.params = None
     
     @staticmethod
-    def calculate_ci(
-        sensitivity, specificity, positives, actives, recoveries, total_tests
-        ):
+    def calculate_ci(pcr_sens, pcr_spec, daily_positive, cum_removed,
+        daily_tests):
         """Return two arrays: the lower confidence interval bound, the
         second row is the upper confidence interval bound.
 
         Parameters
         ----------
-        sensitivity : float or numpy.ndarray
-            Test sensitivity. If the sensitivity is different in
-            different intervals, it should be stored in the array-like
-            format where the length is the same as the length of the
-            data.
-        specificity : float or numpy.ndarray
-            Test specificity. If the sensitivity is different in
-            different intervals, it should be stored in the array-like
-            format where the length is the same as the length of the
-            data.
-        positives : numpy.ndarray
-            Daily number of new confirmed positive infections.
-        actives : numpy.ndarray
-            Time series of currently active infected individuals.
-        recoveries : numpy.ndarray
-            Daily number of new confirmed recoveries.        
-        total_tests : numpy.ndarray
+        pcr_sens : float or numpy.ndarray
+            PCR-test sensitivity, the measure of the proportion of
+            `daily_positives` that are correctly classified.
+        pcr_spec : float or numpy.ndarray
+            PCR-test pecificity, the measure of the proportion of
+            the correctly classified negative tests.
+        daily_positive : numpy.ndarray
+            Daily number of newly confirmed positive infections.
+        cum_removed : numpy.ndarray
+            Cumulative number of confirmed recoveries and deaths.
+        daily_tests : numpy.ndarray
             Daily number of tests.
 
         Returns
         -------
         tuple
-            Tuple consisting two numpy array. The first array is the
-            lower CI bound array, and the second row is the upper CI
-            bound array.
+            Tuple with 4 arrays: lower 95% CI bound, lower CI bound,
+            upper CI bound and upper 95% CI bound.
         """
-        std_sensitivity_err = np.sqrt(np.divide(
-            (1 - sensitivity) * sensitivity, 
-            positives, 
-            out=np.zeros(positives.shape, dtype=float), 
-            where=positives!=0,))
-        sensitivity_ci = 1.960 * std_sensitivity_err
-        lower_bound_sensitivity = np.abs(sensitivity - sensitivity_ci)
-        lower_bound_true_positives = lower_bound_sensitivity * positives
-        lower_bound_active_infections = np.cumsum(lower_bound_true_positives)\
-                                        - recoveries
-        lower_bound_active_infections[np.where(
-            lower_bound_active_infections<0)] = 0 
-
-        # yesterday's test gives today's result 
-        total_tests = np.concatenate((np.array([total_tests[0]]),
-            total_tests[:-1]))
-        negatives = total_tests - positives
-        std_specificity_err = np.sqrt(np.divide(
-            (1 - specificity) * specificity,
-            negatives,
-            out=np.zeros(negatives.shape, dtype=float), 
-            where=negatives!=0,))
-        specificity_ci = 1.960 * std_specificity_err
-        upper_bound_specificity = np.abs(specificity + specificity_ci)
-        upper_bound_true_negatives = upper_bound_specificity * negatives
-        upper_bound_false_negatives = negatives - upper_bound_true_negatives
-        upper_bound_true_positives = upper_bound_false_negatives + positives
-        upper_bound_active_infections = np.cumsum(upper_bound_true_positives)\
-                                        - recoveries
-        return (lower_bound_active_infections, upper_bound_active_infections)
-            
+        # LOWER BOUND
+        # lower bound CI
+        tp_lb = pcr_sens * daily_positive
+        active_lb = np.cumsum(tp_lb) - cum_removed
+        active_lb[np.where(active_lb<0)] = 0
+        # lower bound 95% CI
+        std_sens_err = np.sqrt(np.divide(
+            (1 - pcr_sens) * pcr_sens, 
+            daily_positive, 
+            out=np.zeros(daily_positive.shape, dtype=float), 
+            where=daily_positive!=0,))
+        sens_lb_ci = pcr_sens - 1.96 * std_sens_err
+        tp_lb_ci = sens_lb_ci * daily_positive
+        active_lb_ci = np.cumsum(tp_lb_ci) - cum_removed
+        active_lb_ci[np.where(active_lb_ci<0)] = 0 
+        # UPPER BOUND
+        # yesterday's test gives today's result
+        daily_tests = np.concatenate((np.array([daily_tests[0]]),
+            daily_tests[:-1]))
+        daily_negative = daily_tests - daily_positive
+        # upper bound CI
+        tn = pcr_spec * daily_negative
+        fn = daily_negative - tn
+        tp_ub = fn + daily_positive
+        active_ub = np.cumsum(tp_ub) - cum_removed
+        # upper bound 95% CI
+        std_spec_err = np.sqrt(np.divide(
+            (1 - pcr_spec) * pcr_spec,
+            daily_negative,
+            out=np.zeros(daily_negative.shape, dtype=float), 
+            where=daily_negative!=0,))
+        spec_ub_ci = pcr_spec - 1.96 * std_spec_err
+        tn_ci = spec_ub_ci * daily_negative
+        fn_ci = daily_negative - tn_ci
+        tp_ub_ci = fn_ci + daily_positive
+        active_ub_ci = np.cumsum(tp_ub_ci) - cum_removed
+        return (active_lb_ci, active_lb, active_ub, active_ub_ci)
+     
 
 class SEIRModel(CompartmentalModel):
     """SEIR model class."""
 
-    def fit(
-        self, 
-        active_cases, 
-        removed_cases,
-        initial_conditions,
-        initial_guess=[0.1, 0.1, 0.1, 0.1],
-        ):
+    def fit(self, cum_positives, cum_recovered, cum_deceased, IC,
+        guess=[0.1, 0.1, 0.1, 0.1]):
         """Fit SEIR model.
         
         Parameters
         ----------
-        active_cases : numpy.ndarray
-            Time series of currently active infected individuals.
-        removed_cases : numpy.ndarray
-            Time series of recovered+deceased individuals.
-        initial_conditions : list
-            Values of S, E, I and R at the first day.
-        initial_guess : list, optional
-            Array of real elements by means of possible values of
-            independent variables.
+        cum_positives : numpy.ndarray
+            Cumaltive number of confirmed positive infections.
+        cum_recovered : numpy.ndarray
+            Cumulative number of confirmed recoveries. 
+        cum_deceased : numpy.ndarray
+            Cumulative number of deaths.
+        IC : list
+            Initial values of S, E, I and R at the first day.
+        guess : list, optional
+            Initial guess for parameters to be fitted.
         
         Returns
         -------
         tuple
-            Fitted epidemiological parameters: beta, delta, alpha and
-            gamma rate.
+            Fitted epidemiological parameters.
         list
             Loss values during the optimization procedure.
         """
-        self.active_cases = active_cases
-        self.removed_cases = removed_cases
-        loss = []
-        def print_loss(p):
+        assert isinstance(cum_positives, np.ndarray), \
+            '`cum_positives` has to be of `numpy.ndarray` type.'
+        assert isinstance(cum_recovered, np.ndarray), \
+            '`cum_recovered` has to be of `numpy.ndarray` type.'
+        assert isinstance(cum_deceased, np.ndarray), \
+            '`cum_deceased` has to be of `numpy.ndarray` type.'
+        self.daily_positive = np.concatenate((
+            np.array([cum_positives[0]]), np.diff(cum_positives)))
+        self.active = cum_positives - cum_recovered - cum_deceased
+        self.removed = cum_recovered + cum_deceased
+        self.IC = IC
+        loss_values = []
+        def _print_loss(p):
             """Optimizer callback."""
-            loss.append(
-                SEIRModel._loss(
-                    p, 
-                    self.active_cases, 
-                    self.removed_cases, 
-                    initial_conditions, 
-                    self.loss_fn,
-                    )
-            )
-            
-        self.y0 = initial_conditions
+            loss_values.append(
+                SEIRModel._loss(p, self.active, self.removed, self.IC, 
+                    self.loss_fun))
+
+        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+        logging.info(f'L-BFGS-B optimization started: {dt.datetime.now()}')
+        start_stopwatch = time.time()
         opt = minimize(
             fun=SEIRModel._loss, 
-            x0=initial_guess,
-            args=(self.active_cases, self.removed_cases, self.y0, self.loss_fn),
+            x0=guess,
+            args=(self.active, self.removed, self.IC, self.loss_fun),
             method='L-BFGS-B',
-            bounds=[(1e-5, 1.0), (1e-5, 1.0), (1e-5, 1.0), (1e-5, 1.0),],
+            bounds=[(1e-5, 1.0)] * len(guess),
             options={'maxiter': 1000, 'disp': True},
-            callback=print_loss,
-        )
-        self.beta, self.delta, self.alpha, self.gamma = opt.x
-        return (self.beta, self.delta, self.alpha, self.gamma), loss
+            callback=_print_loss,
+            )
+        elapsed = time.time() - start_stopwatch
+        logging.info(f'Elapsed time: {round(elapsed, 4)}s')
+        self.params = opt.x
+        return self.params, loss_values
 
     def simulate(self):
         """Simulate S, E, I and R based on the fitted epidemiological
@@ -273,28 +285,23 @@ class SEIRModel(CompartmentalModel):
         """
         sol = solve_ivp(
             fun=_SEIR, 
-            t_span=(0, self.active_cases.size), 
-            y0=self.y0, 
-            args=(self.beta, self.delta, self.alpha, self.gamma),
+            t_span=(0, self.active.size), 
+            y0=self.IC, 
+            args=tuple(self.params),
             method='RK45', 
-            t_eval=np.arange(0, self.active_cases.size, 1), 
+            t_eval=np.arange(0, self.active.size, 1), 
             vectorized=True,
-        )
-        if (self.sensitivity and self.specificity and 
-                self.total_tests is not None):
-            (lower_bound, upper_bound) = self.calculate_ci(
-                self.sensitivity, 
-                self.specificity,
-                self.new_positives,
-                self.active_cases,
-                self.removed_cases,
-                self.total_tests,
-                )
+            )
+        if self.calc_ci:
+            (active_lb_ci, active_lb, active_ub, active_ub_ci) = \
+                self.calculate_ci(self.pcr_sens, self.pcr_spec,
+                    self.daily_positive, self.removed, self.daily_tests)
             I_ci = np.r_[
-                lower_bound.reshape(1, -1),
+                active_lb_ci.reshape(1, -1),
+                active_lb.reshape(1, -1),
                 sol.y[2].reshape(1, -1),
-                upper_bound.reshape(1, -1),
-            ]
+                active_ub.reshape(1, -1),
+                active_ub_ci.reshape(1, -1)]
             return (sol.y[0], sol.y[1], I_ci, sol.y[3])
         return (sol.y[0], sol.y[1], sol.y[2], sol.y[3])
 
@@ -313,42 +320,48 @@ class SEIRModel(CompartmentalModel):
             S, E, I and R predicted values.
         """
         assert isinstance(n_days, (int, )), '`n_days` must be an integer.'
-        eff_idx = self.active_cases.size
+        eff_idx = self.active.size
         sol = solve_ivp(
             fun=_SEIR, 
             t_span=(0, eff_idx + n_days),
-            y0=self.y0,
-            args=(self.beta, self.delta, self.alpha, self.gamma),
+            y0=self.IC,
+            args=tuple(self.params),
             method='RK45',
             t_eval=np.arange(0, eff_idx + n_days, 1), 
             vectorized=True,
-        )
-        return (
-            sol.y[0][eff_idx:],
-            sol.y[1][eff_idx:], 
-            sol.y[2][eff_idx:],
-            sol.y[3][eff_idx:],
-        )
+            )
+        return (sol.y[0][eff_idx:], sol.y[1][eff_idx:], sol.y[2][eff_idx:],
+            sol.y[3][eff_idx:],)
+    
+    def __str__(self):
+        return('SEIR model class')
+
+    def __repr__(self):
+        return self.__str__()
+
+    @property
+    def get_params(self):
+        if self.params is None:
+            raise ValueError('No fitted parameters. Call `fit` method first.')
+        return (self.params)
     
     @staticmethod
-    def _loss(
-        params, active_cases, removed_cases, initial_conditions, loss_fn
-        ):
-        """Calculate and return the loss function between actual and
-        predicted values.
+    def _loss(params, active, cum_removed, IC, loss_fun):
+        """Calculate and return the loss function between the actual
+        and predicted values.
         
         Parameters
         ----------
         params : list
-            Values of beta, delta, alpha and gamma rates.
-        active_cases: numpy.ndarray
+            Epidemiological parameters.
+        active: numpy.ndarray
             Time series of currently active infected individuals.
-        removed_cases: numpy.ndarray
-            Time series of recovered+deceased individuals.
-        initial_conditions: list
-            Values of S, E, I and R at the first day.
-        loss_fn : str, optional
-            Loss function.
+        cum_removed : numpy.ndarray
+            Cumulative number of confirmed recoveries and deaths.
+        IC: list
+            Initial conditions
+        loss_fun : str
+            Estimator.
                 
         Returns
         -------
@@ -356,18 +369,18 @@ class SEIRModel(CompartmentalModel):
             Loss between the actual and predicted value of confirmed
             and recovered individuals.
         """
-        size = active_cases.size
+        size = active.size
         sol = solve_ivp(
             fun=_SEIR, 
             t_span=(0, size), 
-            y0=initial_conditions, 
+            y0=IC, 
             args=params,
             method='RK45', 
             t_eval=np.arange(0, size, 1), 
             vectorized=True,
         )
-        return loss_fn(sol.y[2], active_cases) \
-               + loss_fn(sol.y[3], removed_cases)
+        return loss_fun(sol.y[2], active)\
+               + loss_fun(sol.y[3], cum_removed)
 
 
 class SEIRDModel(CompartmentalModel):
