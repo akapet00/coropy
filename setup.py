@@ -15,7 +15,8 @@ setuptools.setup(
     url='https://github.com/antelk/covid-19',
     packages=setuptools.find_packages(),
     install_requires=[
-        'numpy>=1.7','scipy','matplotlib','pytest', 'pandas', 'setuptools'],
+        'numpy>=1.7','scipy', 'scikit-learn', 'matplotlib','pytest', 'pandas',
+        'setuptools'],
     classifiers=[
         'Programming Language :: Python :: 3',
         'License :: OSI Approved :: MIT License',
