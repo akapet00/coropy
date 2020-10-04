@@ -53,7 +53,7 @@ Go to the [sandbox](https://github.com/antelk/covid-19/tree/master/sandbox) dire
 There are currently 6 notebooks, all exploring the COVID-19 situation in Croatia. To view it online click on following links:
 * [Data visualization and trends](https://github.com/antelk/covid-19/blob/master/sandbox/00-Data-Visualization-and-Trends.ipynb)
 * [Exploring mortality](https://github.com/antelk/covid-19/blob/master/sandbox/01-Exploring-Mortality.ipynb)
-* [Outbreak exponential fitting](https://github.com/antelk/covid-19/blob/master/sandbox/02-Second-Wave-Curve-Fitting.ipynb)
+* [Outbreak exponential fitting](https://github.com/antelk/covid-19/blob/master/sandbox/02-Epidemic-Growth-Modeling.ipynb)
 * [Modified SEIR simulation](https://github.com/antelk/covid-19/blob/master/sandbox/03-Modified-SEIR-Simulation.ipynb)
 * [SEIRD simulation with confidence intervals based on RT-PCR test sensitivity](https://github.com/antelk/covid-19/blob/master/sandbox/04-SEIRD-Simulation.ipynb)
 * [Multiple outbreaks simulation](https://github.com/antelk/covid-19/blob/master/sandbox/05-Multiple-Waves-Simulation.ipynb)
