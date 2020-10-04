@@ -1,6 +1,7 @@
 name: coropy
 dependencies:
   - python>3.6
-  - scipy
-  - numpy
   - matplotlib
+  - numpy
+  - scikit-learn
+  - scipy
