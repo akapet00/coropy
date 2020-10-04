@@ -3,7 +3,7 @@ import warnings
 import numpy as np 
 from scipy.optimize import curve_fit 
 
-from .utils import normalize, restore
+from .utils import Scaler, normalize, restore
 
 
 __all__ = ['GrowthCOVIDModel', '_exp_func', '_logistic_func']
@@ -85,9 +85,20 @@ class GrowthCOVIDModel(object):
         self.normalize = normalize
         self.calc_ci = calc_ci
         if kwargs:
-            self.acc = kwargs['acc']
+            self.spread = kwargs['spread']
         else:
-            self.acc = None
+            self.spread = None
+    
+    def __str__(self):
+        return(
+            f'Epidemic growth model \n',
+            f'--------------------- \n',
+            f'- {self.function} function assumption \n'
+            f'- normalization of the data: {self.normalize} \n'
+            f'- confidence intervals: {self.calc_ci}')
+
+    def __repr__(self):
+        return self.__str__()
     
     def fit(self, data):
         """Fit the data to the growth function.
@@ -99,29 +110,28 @@ class GrowthCOVIDModel(object):
         
         Returns
         -------
-        x : numpy.ndarray
-            The independent variable where the data is measured.
-        fitted : numpy.ndarray
-            Fitted growth function with lower and upper bound if
-            `confidence_interval` is set to True.
+        None
         """
         self.data = data
         if self.normalize:
-            y = normalize(self.data)
+            self.scaler = Scaler()
+            y = self.scaler.fit_transform(data.reshape(-1, 1))
             x = normalize(np.arange(self.data.size))
         else: 
             y = self.data
             x = np.arange(self.data.size)
 
-        if self.calc_ci and self.acc:
-            y_std = y*self.acc
+        if self.calc_ci and self.spread is not None:
+            y_std = self.spread.ravel()
             abs_std = True
+            if self.normalize:
+                y_std = self.scaler.transform(y_std.reshape(-1, 1))
         else:
             y_std = np.ones_like(y)
             abs_std = False
 
-        self.popt, self.pcov = curve_fit(self.function, x, y, sigma=y_std,
-            absolute_sigma=abs_std)
+        self.popt, self.pcov = curve_fit(self.function, x, y.ravel(),
+            sigma=y_std.ravel(), absolute_sigma=abs_std)
         fitted = self.function(x, *self.popt)
 
         if self.calc_ci:
@@ -130,9 +140,11 @@ class GrowthCOVIDModel(object):
             upper_bound = self.function(x, *(self.popt + self.perr))
             if self.normalize: 
                 x = restore(x, np.arange(self.data.size))
-                fitted = restore(fitted, self.data)
-                lower_bound = restore(lower_bound, self.data)
-                upper_bound = restore(upper_bound, self.data)
+                fitted = self.scaler.inverse_transform(fitted.reshape(-1, 1))
+                lower_bound = self.scaler.inverse_transform(
+                    lower_bound.reshape(-1, 1))
+                upper_bound = self.scaler.inverse_transform(
+                    upper_bound.reshape(-1, 1))
             fitted = np.r_[
                 lower_bound.reshape(1, -1), 
                 fitted.reshape(1, -1), 
@@ -140,8 +152,31 @@ class GrowthCOVIDModel(object):
 
         elif not self.calc_ci and self.normalize:
             x = restore(x, np.arange(self.data.size))
-            fitted = restore(fitted, self.data)
-        return x, fitted
+            fitted = self.scaler.inverse_transform(
+                fitted.reshape(-1, 1)).ravel()
+        self.x = x
+        self.fitted = fitted
+    
+    @property
+    def get_fitted(self):
+        """Return fitted growth function over the independent variable
+        where the data is measured.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        x : numpy.ndarray
+            The independent variable where the data is measured.
+        fitted : numpy.ndarray
+            Fitted growth function with lower and upper bound if
+            `confidence_interval` is set to True.
+        """
+        if self.fitted is None:
+            raise ValueError('Call `fit` method first.')
+        return self.x, self.fitted
 
     def predict(self, n_days):
         """Predict the future n_days using the fitted growth function.
@@ -177,14 +212,17 @@ class GrowthCOVIDModel(object):
             upper_bound = self.function(x_fut, *(self.popt + self.perr))
             if self.normalize: 
                 x_fut = restore(x_fut, np.arange(self.data.size))
-                predicted = restore(predicted, self.data)
-                lower_bound = restore(lower_bound, self.data)
-                upper_bound = restore(upper_bound, self.data)
+                predicted = self.scaler.inverse_transform(
+                    predicted.reshape(-1, 1))
+                lower_bound = self.scaler.inverse_transform(
+                    lower_bound.reshape(-1, 1))
+                upper_bound = self.scaler.inverse_transform(
+                    upper_bound.reshape(-1, 1))
             predicted = np.r_[
                 lower_bound.reshape(1, -1), 
                 predicted.reshape(1, -1), 
                 upper_bound.reshape(1, -1)]
         elif not self.calc_ci and self.normalize:
             x_fut = restore(x_fut, np.arange(self.data.size))
-            predicted = restore(predicted, self.data)
+            predicted = self.scaler(predicted.reshape(-1, 1)).ravel()
         return x_fut, predicted
