@@ -189,6 +189,12 @@ class GrowthCOVIDModel(object):
             raise ValueError('Call `fit` method first.')
         return self.x, self.fitted
 
+    @property
+    def get_params(self):
+        if self.popt is None:
+            raise ValueError('No fitted parameters. Call `fit` method first.')
+        return (self.popt)
+
     def predict(self, n_days):
         """Predict the future n_days using the fitted growth function.
         
