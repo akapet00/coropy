@@ -85,7 +85,15 @@ class GrowthCOVIDModel(object):
         self.normalize = normalize
         self.calc_ci = calc_ci
         if kwargs:
-            self.spread = kwargs['spread']
+            try:
+                self.spread = kwargs['spread']
+            except KeyError:
+                warnings.warn(
+                    'Keyword argument not understood.'
+                    'Confidence intervals will be plotted without `spread`.')
+                self.spread = None
+            finally:
+                pass
         else:
             self.spread = None
     
@@ -112,7 +120,10 @@ class GrowthCOVIDModel(object):
         -------
         None
         """
-        self.data = data
+        if isinstance(data, (np.ndarray)):
+            self.data = data.ravel()
+        else:
+            raise ValueError('Input data must be numpy.ndarray')
         if self.normalize:
             self.scaler = Scaler()
             y = self.scaler.fit_transform(data.reshape(-1, 1))

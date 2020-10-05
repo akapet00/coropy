@@ -1,3 +1,5 @@
+from collections import Iterable
+
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler as Scaler
 
@@ -7,7 +9,7 @@ def normalize(data):
     
     Parameters
     ----------
-    data : numpy.ndarray
+    data : iterable
         The data to be normalized.
     
     Returns
@@ -15,22 +17,26 @@ def normalize(data):
     numpy.ndarray
         Normalized data.
     """
-    if isinstance(data, (np.ndarray)):
-        assert data.ndim == 1, 'array must be 1-D'
-    elif isinstance(data, (list)):
+    if not isinstance(data, Iterable):
+        raise ValueError('data must be iterable')
+    if isinstance(data, (list, tuple)):
         data = np.array(data)
-        assert data.ndim == 1, 'array must be 1-D'
+    if isinstance(data, (np.ndarray)):
+        assert data.ndim == 1, 'data must be 1-D'
+        assert data.size > 1, 'data must contain at least 2 elements'
+    if np.isnan(data).any():
+        raise ValueError('data contains one or more NaN values')
     return (data - np.min(data)) / (np.max(data) - np.min(data))
 
 
-def restore(normalized, original):
+def restore(y_norm, y):
     """Return restored data considering original data.
     
     Parameters
     ----------
-    normalized : numpy.ndarray
+    y_norm : iterable
         Scaled data.
-    original : numpy.ndarray
+    y : iterable
         Original data.
     
     Returns
@@ -38,18 +44,22 @@ def restore(normalized, original):
     numpy.ndarray
         Restored data.
     """
-    if (isinstance(normalized, (np.ndarray)) and 
-            isinstance(original, (np.ndarray))):
-        assert normalized.ndim == 1 and original.ndim == 1, \
-            'both arrays must be 1-D'
-    elif isinstance(normalized, (list)) or isinstance(original, (list)):
-        normalized = np.array(normalized)
-        original = np.array(original)
-        assert normalized.ndim == 1 and original.ndim == 1, \
-            'both arrays must be 1-D'
-    return normalized \
-           * (np.max(original) - np.min(original)) \
-           + np.min(original)
+    if not (isinstance(y_norm, Iterable) and
+            isinstance(y, Iterable)):
+        raise ValueError('data must be iterable')
+    if isinstance(y_norm, (list, tuple)):
+        y_norm = np.array(y_norm)
+    if isinstance(y, (list, tuple)):
+        y = np.array(y)
+    if (isinstance(y_norm, (np.ndarray)) and 
+            isinstance(y, (np.ndarray))):
+        assert y_norm.ndim == 1 and y.ndim == 1, \
+            'data must be 1-D'
+        assert y_norm.size > 1 or y.size > 1, \
+            'data must contain at least 2 elements'
+    if np.isnan(y_norm).any() or np.isnan(y).any():
+        raise ValueError('data contains one or more NaN values')
+    return y_norm * (np.max(y) - np.min(y)) + np.min(y)
 
 
 def moving_average(y, n=3):
@@ -68,9 +78,15 @@ def moving_average(y, n=3):
     numpy.ndarray
         Averaged data.
     """
-    assert y.ndim == 1, 'Data should be in array_like format.'
     if not isinstance(n, (int)):
-        raise ValueError('Averaging windows should be integer.')
+        raise ValueError('Averaging windows should be an integer.')
+    if not isinstance(y, Iterable):
+        raise ValueError('data must be iterable')
+    if isinstance(y, (list, tuple)):
+        y = np.array(y)
+    if isinstance(y, (np.ndarray)):
+        assert y.ndim == 1, 'data must be 1-D'
+        assert y.size >= n, 'data must contain at least `n` elements'
     if n == 0:
         return y
     ret = np.cumsum(y, dtype=float)
@@ -93,6 +109,9 @@ def mse(y_true, y_pred):
     float
         Mean square error value.
     """
+    if (not isinstance(y_true, (np.ndarray, int, float)) or 
+            not isinstance(y_pred, (np.ndarray, int, float))):
+        raise ValueError('supported data types: numpy.ndarray, int, float')
     return np.mean((y_true - y_pred)**2)
 
 
@@ -111,6 +130,9 @@ def rmse(y_true, y_pred):
     float
         Root mean square error value.
     """
+    if (not isinstance(y_true, (np.ndarray, int, float)) or 
+            not isinstance(y_pred, (np.ndarray, int, float))):
+        raise ValueError('supported data types: numpy.ndarray, int, float')
     return np.sqrt(mse(y_true, y_pred))
 
 
@@ -129,6 +151,9 @@ def msle(y_true, y_pred):
     float
         Mean square log error value.
     """
+    if (not isinstance(y_true, (np.ndarray, int, float)) or 
+            not isinstance(y_pred, (np.ndarray, int, float))):
+        raise ValueError('supported data types: numpy.ndarray, int, float')
     return mse(np.log1p(y_true), np.log1p(y_pred))
 
 
@@ -147,6 +172,9 @@ def mae(y_true, y_pred):
     float
         Mean absolute error value.
     """
+    if (not isinstance(y_true, (np.ndarray, int, float)) or 
+            not isinstance(y_pred, (np.ndarray, int, float))):
+        raise ValueError('supported data types: numpy.ndarray, int, float')
     return np.mean(np.abs(y_true - y_pred))
 
 
@@ -165,7 +193,9 @@ def train_test_split(data, split_ratio=0.8):
     numpy.array and numpy.array
         Train data set and test data set.
     """
+    if not isinstance(data, (np.ndarray,)):
+        raise ValueError('data must be numpy.ndarray')
     if split_ratio < 0. or split_ratio > 1.:
-        raise ValueError('split_ratio ill-defined.')
+        raise ValueError('`split_ratio` ill-defined, must be in <0, 1> range')
     train_size = int(round(split_ratio * len(data)))
     return data[:train_size], data[train_size:]

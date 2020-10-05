@@ -144,7 +144,7 @@ def avg_new_cases_over_total_cases(confirmed_cases, avg_period=7,
         fig = plt.figure()
     else:
         mpl.rcParams.update(mpl.rcParamsDefault)
-        fig = plt.figure()
+        fig = plt.figure(figsize=(6.4, 4.8))
     ax = fig.add_subplot(111)
     ax.loglog(cases_periodically, new_cases, '-', c='b', label='data')
     ax.plot(_x, _x, ':', c='b', label='theoretical exp') # exp growth
