@@ -13,7 +13,7 @@ def main():
             daily_tests_idx = (target_idx + len(TARGET), target_idx + len(TARGET) + 6)
             daily_tests_nmb = int(
                 x.text[daily_tests_idx[0]:daily_tests_idx[1]].replace('.', ''))
-            with open('test.dat', 'a') as f:
+            with open('tests.dat', 'a') as f:
                 f.write(f'\n{daily_tests_nmb}')
 
 
