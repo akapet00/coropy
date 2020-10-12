@@ -78,10 +78,15 @@ class GrowthCOVIDModel(object):
         **kargs : dict, optional
             Additional keyword argument for `curve_fit` function.
         """
-        try:
-            self.function = _growth_model_dispatcher[function]
-        except:
-            raise ValueError('Try `exponential` or `logistic` growth models.')
+        if isinstance(function, (str, )):
+            try:
+                self.function = _growth_model_dispatcher[function]
+            except:
+                raise ValueError('Try `exponential` or `logistic` growth models.')
+        elif callable(function):
+            self.function = function
+        else:
+            raise TypeError('Argument type for `function` is inappropriate.')
         self.normalize = normalize
         self.calc_ci = calc_ci
         if kwargs:
