@@ -147,7 +147,7 @@ class GrowthCOVIDModel(object):
             abs_std = False
 
         self.popt, self.pcov = curve_fit(self.function, x, y.ravel(),
-            sigma=y_std.ravel(), absolute_sigma=abs_std)
+            sigma=y_std.ravel(), absolute_sigma=abs_std, maxfev=3000)
         fitted = self.function(x, *self.popt)
 
         if self.calc_ci:
@@ -246,5 +246,6 @@ class GrowthCOVIDModel(object):
                 upper_bound.reshape(1, -1)]
         elif not self.calc_ci and self.normalize:
             x_fut = restore(x_fut, np.arange(self.data.size))
-            predicted = self.scaler(predicted.reshape(-1, 1)).ravel()
+            predicted = self.scaler.inverse_transform(
+                predicted.reshape(-1, 1)).ravel()
         return x_fut, predicted
