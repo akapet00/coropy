@@ -2,7 +2,7 @@ import requests
 
 
 URL = 'https://koronavirus.hr'
-TARGETS = ['testirano je njih', 'testirane su']
+TARGETS = ['testirano je', 'testirane su']
 
 
 def main():
