@@ -12,11 +12,10 @@ setuptools.setup(
     description='A set of Python modules for COVID-19 epidemics modeling',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='https://github.com/antelk/covid-19',
+    url='https://github.com/antelk/coropy',
     packages=setuptools.find_packages(),
     install_requires=[
-        'numpy>=1.7','scipy', 'scikit-learn', 'matplotlib','pytest', 'pandas',
-        'setuptools'],
+        'numpy','scipy', 'scikit-learn', 'matplotlib', 'setuptools'],
     classifiers=[
         'Programming Language :: Python :: 3',
         'License :: OSI Approved :: MIT License',
